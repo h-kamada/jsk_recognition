@@ -1,3 +1,6 @@
+(ros::load-ros-manifest "jsk_pcl_ros")
+(ros::roseus "pub_type_num")
+(ros::advertise "type_num" jsk_pcl_ros::Int32Stamped 1)
 ;;
 ;;
 (defvar *detection-topic* "/narrow_stereo/left/ObjectDetection")
@@ -82,6 +85,11 @@
                              (detection-topic *detection-topic*)
                              ((:target-object target-obj) (make-cube 60 60 60)))
   (let ((tgt-cds (send target-obj :copy-worldcoords)))
+    (setq msg (instance jsk_pcl_ros::Int32Stamped :init))
+    (send msg :data 511)
+    (send msg :header :stamp (ros::time-now))
+    (ros::publish "type_num" msg)
+
     (send target-obj :reset-coords)
     (setf (get target-obj :type) atype)
     (when speak-name
@@ -93,7 +101,17 @@
             (speak-jp (format nil "I am looking for ~a." (send target-obj :speak-name))))
            (t (speak-jp (format nil "~aをさがしています" (send target-obj :speak-name)))))
         (speak-jp (format nil "~a を さがして います" (send target-obj :speak-name)))))
+    (setq msg (instance jsk_pcl_ros::Int32Stamped :init))
+    (send msg :data 512)
+    (send msg :header :stamp (ros::time-now))
+    (ros::publish "type_num" msg)
+
     (start-detection-interface-subscribe tf-force target-obj detection-topic)
+    (setq msg (instance jsk_pcl_ros::Int32Stamped :init))
+    (send msg :data 513)
+    (send msg :header :stamp (ros::time-now))
+    (ros::publish "type_num" msg)
+
     (send *ri* :ros-wait 2.0 :spin-self t
           :func-before-throw #'(lambda (sl) (stop-detection-interface-subscribe detection-topic))) ;; attention-check ...
     (send target-obj :stamp (ros::time-now))
@@ -103,6 +121,11 @@
            (start-time (ros::time-now)) (detect-object-list))
       (ros::ros-info "check (timeout=~A, type=~A, tf-force=~A)" timeout atype tf-force)
       (while (ros::ok)
+        (setq msg (instance jsk_pcl_ros::Int32Stamped :init))
+        (send msg :data 514)
+        (send msg :header :stamp (ros::time-now))
+        (ros::publish "type_num" msg)
+
         (send *ri* :ros-wait 0.0 :spin t
               :func-before-throw #'(lambda (sl) (stop-detection-interface-subscribe detection-topic))) ;; attention-check ...  ;; target-obj was updated in objectdetection
         ;; check target-obj is previously detected
@@ -112,10 +135,20 @@
                    (not (member (send target-obj :stamp) detect-object-list))
                    ;; check if obj is already stored in detect-object-list
                    )
+          (setq msg (instance jsk_pcl_ros::Int32Stamped :init))
+          (send msg :data 515)
+          (send msg :header :stamp (ros::time-now))
+          (ros::publish "type_num" msg)
+
           (push (send target-obj :stamp) detect-object-list)
           (setq current-object-coords (send target-obj :copy-worldcoords)) ;; updated position
           (ros::ros-info "current -> ~A (~A)" current-object-coords (send target-obj :name))
           (when publish-objectdetection-marker
+            (setq msg (instance jsk_pcl_ros::Int32Stamped :init))
+            (send msg :data 516)
+            (send msg :header :stamp (ros::time-now))
+            (ros::publish "type_num" msg)
+
             (ros::advertise "/object_detection_marker_array" visualization_msgs::MarkerArray 5)
             (ros::publish "/object_detection_marker_array"
                           (instance visualization_msgs::MarkerArray :init
@@ -145,6 +178,10 @@
                                            :ns (format nil "object_body_~A" (send target-obj :name))
                                            :lifetime marker-life :id 2)
                                           ))))
+          (setq msg (instance jsk_pcl_ros::Int32Stamped :init))
+          (send msg :data 517)
+          (send msg :header :stamp (ros::time-now))
+          (ros::publish "type_num" msg)
 
           (ros::ros-info "check detected ~A diff-pos:~A, diff-rot:~A"
                          (send target-obj :name)
@@ -154,6 +191,11 @@
                          (if previous-object-coords
                              (norm (send previous-object-coords
                                          :difference-rotation current-object-coords))))
+          (setq msg (instance jsk_pcl_ros::Int32Stamped :init))
+          (send msg :data 518)
+          (send msg :header :stamp (ros::time-now))
+          (ros::publish "type_num" msg)
+
           (when (or single
                     (and previous-object-coords
                          (and diff-position
@@ -165,6 +207,11 @@
                                              :difference-rotation current-object-coords))
                                  diff-rotation)) ;; moved a little -> found obj
                          ))
+            (setq msg (instance jsk_pcl_ros::Int32Stamped :init))
+            (send msg :data 519)
+            (send msg :header :stamp (ros::time-now))
+            (ros::publish "type_num" msg)
+
             (send *ri* :ros-wait 0.0 :func-before-throw
                   #'(lambda (sl) (stop-detection-interface-subscribe detection-topic))) ;; attention-check ...
             (cond
@@ -173,7 +220,17 @@
               (ros::ros-info (format nil "ok - obj-type(~a)"  target-obj))
               (if (and (boundp '*irtviewer*) x::*display* (/= x::*display* 0))
                   (send *irtviewer* :draw-objects))
+              (setq msg (instance jsk_pcl_ros::Int32Stamped :init))
+              (send msg :data 520)
+              (send msg :header :stamp (ros::time-now))
+              (ros::publish "type_num" msg)
+
               (stop-detection-interface-subscribe detection-topic)
+              (setq msg (instance jsk_pcl_ros::Int32Stamped :init))
+              (send msg :data 521)
+              (send msg :header :stamp (ros::time-now))
+              (ros::publish "type_num" msg)
+
               (when speak
                 (if (and (boundp '*use-voicetext*) *use-voicetext*)
                     (cond
@@ -181,6 +238,11 @@
                       (speak-jp (format nil "I have found ~a." (send target-obj :speak-name))))
                      (t (speak-jp (format nil "~aが見つかりました。" (send target-obj :speak-name)))))
                   (speak-jp (format nil "~a が みつかりました" (send target-obj :speak-name)))))
+              (setq msg (instance jsk_pcl_ros::Int32Stamped :init))
+              (send msg :data 522)
+              (send msg :header :stamp (ros::time-now))
+              (ros::publish "type_num" msg)
+
               (return-from check-detection target-obj))
               (t
                (ros::ros-info (format nil "no - obj-type(~a)" (send target-obj :name)))
@@ -192,10 +254,25 @@
           (setq previous-object-coords current-object-coords)
           ;; set current coords ad previous coords
           ) ;; memq target-obj detect-object-list
+        (setq msg (instance jsk_pcl_ros::Int32Stamped :init))
+        (send msg :data 523)
+        (send msg :header :stamp (ros::time-now))
+        (ros::publish "type_num" msg)
+
         (when (< timeout
                  (send (ros::time- (ros::time-now) start-time) :to-sec))
           (ros::ros-info "timeout")
+          (setq msg (instance jsk_pcl_ros::Int32Stamped :init))
+          (send msg :data 524)
+          (send msg :header :stamp (ros::time-now))
+          (ros::publish "type_num" msg)
+
           (stop-detection-interface-subscribe detection-topic)
+          (setq msg (instance jsk_pcl_ros::Int32Stamped :init))
+          (send msg :data 525)
+          (send msg :header :stamp (ros::time-now))
+          (ros::publish "type_num" msg)
+
           (when speak
             (if (and (boundp '*use-voicetext*) *use-voicetext*)
                 (cond
@@ -207,11 +284,21 @@
           (send target-obj :transform tgt-cds)
           (send *ri* :ros-wait 0.0) ;; attention-check ...
           (return-from check-detection nil))
+        (setq msg (instance jsk_pcl_ros::Int32Stamped :init))
+        (send msg :data 526)
+        (send msg :header :stamp (ros::time-now))
+        (ros::publish "type_num" msg)
+
         (send *ri* :ros-wait 0.05 :spin-self t
               :func-before-throw #'(lambda (sl) (stop-detection-interface-subscribe detection-topic))) ;; attention-check ...
         ) ;; while (ros::ok)
       (stop-detection-interface-subscribe detection-topic)
       (send *ri* :ros-wait 0.05 :spin-self t) ;; attention-check ...
+      (setq msg (instance jsk_pcl_ros::Int32Stamped :init))
+      (send msg :data 527)
+      (send msg :header :stamp (ros::time-now))
+      (ros::publish "type_num" msg)
+
       target-obj
       )))
 ;;
