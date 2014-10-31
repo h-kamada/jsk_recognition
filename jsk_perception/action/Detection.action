@@ -1,0 +1,10 @@
+#goal definition
+int32 order
+---
+#result definition
+int32[] a
+int32[] b
+---
+#feedback
+int32[] a
+int32[] b

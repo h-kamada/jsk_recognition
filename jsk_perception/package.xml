@@ -41,7 +41,11 @@
   <build_depend>tf</build_depend>
   <build_depend>eigen</build_depend>
   <build_depend>jsk_pcl_ros</build_depend>
+  <build_depend>actionlib</build_depend>
+  <build_depend>actionlib_msgs</build_depend>
 
+  <run_depend>actionlib</run_depend>
+  <run_depend>actionlib_msgs</run_depend>
   <run_depend>rospy</run_depend>
   <run_depend>roseus</run_depend>
   <run_depend>imagesift</run_depend>

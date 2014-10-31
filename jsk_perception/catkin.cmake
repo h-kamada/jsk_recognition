@@ -4,7 +4,7 @@ project(jsk_perception)
 find_package(catkin REQUIRED COMPONENTS
   mk message_generation imagesift std_msgs sensor_msgs geometry_msgs cv_bridge
   image_geometry image_transport driver_base dynamic_reconfigure eigen
-  roscpp nodelet rostest tf rospack
+  roscpp nodelet rostest tf rospack actionlib_msgs
   jsk_topic_tools)
 find_package(OpenCV REQUIRED)
 find_package(Boost REQUIRED COMPONENTS filesystem system signals)
@@ -23,12 +23,17 @@ add_message_files(FILES
 
 add_service_files(FILES EuclideanSegment.srv  SetTemplate.srv  WhiteBalancePoints.srv  WhiteBalance.srv)
 
+add_action_files(
+  DIRECTORY action
+  FILES Detection.action
+)
+
 generate_messages(
-  DEPENDENCIES std_msgs sensor_msgs geometry_msgs
+  DEPENDENCIES std_msgs sensor_msgs geometry_msgs actionlib_msgs
 )
 
 catkin_package(
-  CATKIN_DEPENDS std_msgs sensor_msgs geometry_msgs message_runtime
+  CATKIN_DEPENDS std_msgs sensor_msgs geometry_msgs message_runtime actionlib_msgs
   DEPENDS OpenCV
   INCLUDE_DIRS include
   LIBRARIES
