@@ -16,7 +16,7 @@
         (sequence (list 1 0)) msg)
     (dotimes (i (1- order))
       (push (+ (car sequence) (cadr sequence)) sequence))
-    (setq msg (send server :result :sequence (nreverse sequence)))
+    (setq msg (send server :result :a (nreverse sequence)))
     (send server :set-succeeded msg)
     ))
 
