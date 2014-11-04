@@ -8,7 +8,7 @@
 (setq sys::*gc-hook* #'(lambda (a b) (format t ";; gc ~A ~A~%" a b)))
 
 (defvar cur-x 0)
-(defvar cur-y 3)
+(defvar cur-y 0)
 (defvar cur-z 0)
 (defvar cur-prob 0)
 (defvar msg-tmp (instance (class (send (instance jsk_perception::DetectionAction :init) :action_result)) :init))
