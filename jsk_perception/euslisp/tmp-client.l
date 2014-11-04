@@ -1,11 +1,9 @@
 #!/usr/bin/env roseus
-;;;
-;;; euslisp version of ~/ros/ros_pkg_tutorials/actionlib_tutorials/simple_action_servers/fibonacci_client.py
-;;;
+
 (ros::load-ros-manifest "roseus")
 (ros::load-ros-manifest "jsk_perception")
 
-(ros::roseus "fibonacci_client")
+(ros::roseus "tmp-client")
 (setq sys::*gc-hook* #'(lambda (a b) (format t ";; gc ~A ~A~%" a b)))
 
 (ros::service-call "~set_logger_level"
@@ -22,18 +20,19 @@
   (let (goal)
     (if (not (boundp '*c*))
         (setq *c* (instance ros::simple-action-client :init
-                            "fibonacci" jsk_perception::DetectionAction)))
+                            "fibonacci" jsk_perception::Detection2Action)))
     (warning-message 2 ";; ~A wait-for-server~%" (unix::getpid))
     (send *c* :wait-for-server)
-    (setq goal (instance jsk_perception::DetectionActionGoal :init))
+    (setq goal (instance jsk_perception::Detection2ActionGoal :init))
     (send goal :goal :order order)
     (send *c* :send-goal goal)
 
     (warning-message 2 ";; ~A wait-for-result~%" (unix::getpid))
     (send *c* :wait-for-result)
-    (warning-message 2 ";; ~A result -> ~A~A~%" (unix::getpid) (send (send *c* :get-result) :a) (send (send *c* :get-result) :b))
-    (send (send *c* :get-result) :a))
+    (warning-message 2 ";; ~A result -> ~A~A~A~A~%" (unix::getpid) (send (send *c* :get-result) :x) (send (send *c* :get-result) :y) (send (send *c* :get-result) :z) (send (send *c* :get-result) :prob))
+    (send (send *c* :get-result) :x))
   )
+
 
 (let ((count 0) ans fib)  ;; for test-fibonaci.launch
   (setq ans (fibonacci 10))
@@ -47,5 +46,3 @@
        (assert  (= (elt fib (1- (length fib))) ans) "(fib 10) -> ~A" fib))
    (exit 0)
    )
-
-

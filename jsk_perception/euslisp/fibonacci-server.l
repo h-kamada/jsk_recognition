@@ -9,22 +9,25 @@
 ;;;
 ;;;
 (setq sys::*gc-hook* #'(lambda (a b) (format t ";; gc ~A ~A~%" a b)))
-
+(defvar aa (list 0 1 1 2 3 5 8 13 21 34 55))
 (ros::roseus "fibonacci")
 (defun fibonacci-execute-cb (server goal)
   (let ((order (send goal :goal :order))
+;  (let ((order 1)
         (sequence (list 1 0)) msg)
+;    (setq s server)
     (dotimes (i (1- order))
       (push (+ (car sequence) (cadr sequence)) sequence))
-    (setq msg (send server :result :a (nreverse sequence)))
+;;    (setq msg (send server :result :a (nreverse sequence)))
+    (setq msg (send server :result :a aa))
     (send server :set-succeeded msg)
     ))
 
 (setq s (instance ros::simple-action-server :init
                   "/fibonacci" jsk_perception::DetectionAction
-                  :execute-cb #'fibonacci-execute-cb))
+                  :execute-cb 'fibonacci-execute-cb))
 
-(ros::rate 500)
+(ros::rate 5)
 (do-until-key
  (send s :worker)
  (ros::spin-once)
