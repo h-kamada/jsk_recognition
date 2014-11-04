@@ -46,6 +46,12 @@
     (warning-message 2 ";; ~A wait-for-result~%" (unix::getpid))
     (send *c* :wait-for-result)
     (warning-message 2 ";; ~A result -> ~A~A~A~A~%" (unix::getpid) (send (send *c* :get-result) :x) (send (send *c* :get-result) :y) (send (send *c* :get-result) :z) (send (send *c* :get-result) :prob))
+    (unix::sleep 1)
+    (send *c* :send-goal goal)
+    (warning-message 2 ";; ~A wait-for-result~%" (unix::getpid))
+    (send *c* :wait-for-result)
+    (warning-message 2 ";; ~A result -> ~A~A~A~A~%" (unix::getpid) (send (send *c* :get-result) :x) (send (send *c* :get-result) :y) (send (send *c* :get-result) :z) (send (send *c* :get-result) :prob))
+
     )
   )
 (demo)

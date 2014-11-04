@@ -43,7 +43,7 @@
                     "fibonacci" jsk_perception::Detection2Action
                     :execute-cb 'server-cb));;#'とするとエラーする
   (ros::subscribe "/tmp" std_msgs::Float64 #'demo-cb)
-  (ros::rate 2)
+  (ros::rate 200)
   (do-until-key
    (send s :worker)
    (ros::spin-once)
