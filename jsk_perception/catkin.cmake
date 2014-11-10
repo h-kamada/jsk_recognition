@@ -26,6 +26,7 @@ add_service_files(FILES EuclideanSegment.srv  SetTemplate.srv  WhiteBalancePoint
 add_action_files(
   DIRECTORY action
   FILES Detection.action
+  FILES Detection2.action
 )
 
 generate_messages(
