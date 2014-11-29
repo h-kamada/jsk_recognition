@@ -18,6 +18,7 @@
 (send filtered-objectdetection :header :frame_id *map-id*)
 
 (defparameter kfs-lst nil)
+(open "data" :direction :output)
 
 (defvar object-width nil)
 (defvar object-height nil)
@@ -97,6 +98,11 @@
             (send target-obj :move-to trans :local)
             (send target-obj :move-to (ros::tf-pose->coords (send obj :pose)) :local)
             (send tmp-obj :pose (ros::coords->tf-pose target-obj))
+
+            (with-open-file
+             (data "data" :direction :output :if-exists :append)
+             (format data "~A ~A ~A~%" (elt (send target-obj :pos) 0) (elt (send target-obj :pos) 1) (elt (send target-obj :pos) 2)))
+            
             (send tmp-obj :type (send obj :type))
             (setq tmp-obj-lst (append tmp-obj-lst (list tmp-obj)))
             (when (find-method target-obj :update-descendants)
