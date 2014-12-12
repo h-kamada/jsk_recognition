@@ -230,6 +230,17 @@
 ;;     )
 ;;   )
 
+(defun publish-attention (target-obj)
+  (let ((mf-obj-lst (send object-name :objects))
+        (tmp-posestamped (instance geometry_msgs::PoseStamped :init))
+        (tp (get target-obj :type)))
+    (dolist (obj mf-obj-lst)
+      (when (or (not (stringp tp))
+                (substringp tp (send obj :type))) ;; found target
+        (send tmp-posestamped :pose (send obj :pose))
+        (send tmp-posestamped :header (send mf-obj-lst :header))))
+    (ros::publish "/attention_clipper/input/pose" tmp-posestamped)
+    ))
 
 (defun pub-cb (target-obj marker-life force msg)
   (let ((filter-obj))
@@ -240,6 +251,7 @@
       (publish-marker target-obj marker-life :frame *map-id*)
       (publish-marker target-obj marker-life :frame *map-id* :object-name filtered-objectdetection
                       :publish-name "/filtered")
+      (publish-attention target-obj)
       ;;       (publish-2Dpointcloud kfp)
       ;; (ros::ros-info "cur-coords:(~A ~A ~A)"
       ;;                (send (send (send cur-coords :pose) :position) :x)
@@ -294,6 +306,7 @@
                              (publish-objectdetection-marker t)
                              (marker-life 30)
                              (detection-topic *detection-topic*)
+                             (look-at nil)
                              ((:target-object target-obj) (make-cube 60 60 60))
                              )
   (let ((tgt-cds (send target-obj :copy-worldcoords))
@@ -308,6 +321,7 @@
     (ros::advertise "/filtered" visualization_msgs::MarkerArray 5)
     (ros::advertise "/norm/pose" std_msgs::Float32 1)
     (ros::advertise "/norm/rot" std_msgs::Float32 1)
+    (ros::advertise "/attention_clipper/input/pose" geometry_msgs::PoseStamped 1)
     (ros::advertise-service "targetobj" posedetection_msgs::TargetObj #'target-obj-cb)
     (ros::spin)
     )
