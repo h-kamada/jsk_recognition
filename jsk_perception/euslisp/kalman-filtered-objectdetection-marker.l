@@ -326,7 +326,7 @@
 ;;     )
 ;;   )
 
-(defun publish-attention (target-obj)
+(defun publish-attention (target-obj &key (object-name map-frame-objectdetection))
   (let ((mf-obj-lst (send object-name :objects))
         (tmp-posestamped (instance geometry_msgs::PoseStamped :init))
         (tp (get target-obj :type)))
@@ -334,7 +334,7 @@
       (when (or (not (stringp tp))
                 (substringp tp (send obj :type))) ;; found target
         (send tmp-posestamped :pose (send obj :pose))
-        (send tmp-posestamped :header (send mf-obj-lst :header))))
+        (send tmp-posestamped :header (send object-name :header))))
     (ros::publish "/attention_clipper/input/pose" tmp-posestamped)
     ))
 
