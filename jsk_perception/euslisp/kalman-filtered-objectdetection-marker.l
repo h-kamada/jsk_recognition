@@ -98,7 +98,7 @@
             (send *tfb* :send-transform (ros::tf-pose->coords (send obj :pose)) frame (send target-obj :name))
             ;; target-obj should be on *base-frame-id* coordinates
             ;; (send *pr2* :angle-vector av)
-          ))))
+            ))))
     (send map-frame-objectdetection :objects tmp-obj-lst)
     (send map-frame-objectdetection :header :stamp (send msg :header :stamp))
     ))
@@ -230,7 +230,7 @@
 ;;     )
 ;;   )
 
-(defun publish-attention (target-obj)
+(defun publish-attention (target-obj &key (object-name map-frame-objectdetection))
   (let ((mf-obj-lst (send object-name :objects))
         (tmp-posestamped (instance geometry_msgs::PoseStamped :init))
         (tp (get target-obj :type)))
@@ -238,7 +238,7 @@
       (when (or (not (stringp tp))
                 (substringp tp (send obj :type))) ;; found target
         (send tmp-posestamped :pose (send obj :pose))
-        (send tmp-posestamped :header (send mf-obj-lst :header))))
+        (send tmp-posestamped :header (send object-name :header))))
     (ros::publish "/attention_clipper/input/pose" tmp-posestamped)
     ))
 
