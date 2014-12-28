@@ -5,6 +5,11 @@
 (ros::load-ros-manifest "posedetection_msgs")
 (ros::roseus "marker-publish")
 (ros::roseus-add-msgs "posedetection_msgs")
+(ros::wait-for-service "/image_mux/add")
+(ros::wait-for-service "/image_mux/select")
+(ros::wait-for-service "/camera_info_mux/add")
+(ros::wait-for-service "/camera_info_mux/select")
+
 
 (defvar *detection-topic* "/openni/rgb/ObjectDetection")
 (defvar *base-frame-id* "/base_footprint")
@@ -22,7 +27,7 @@
 (defvar object-width nil)
 (defvar object-height nil)
 (defvar relative-pose-str nil)
-
+(defvar mux-flag t)
 (defclass kalman-filters
   :super propertied-object
   :slots (kfp kfr)
@@ -251,7 +256,7 @@
     (send tmp-pose :orientation :w (read relative-pose-stream nil))
     (print-ros-msg tmp-pose)
     (setq inverse-trans (send (send (ros::tf-pose->coords tmp-pose) :inverse-transformation)
-                              :translate (float-vector (* (/ object-width 2.0) 1000) (* (/ object-height 2.0) 1000) 0)))
+                              :translate (float-vector (* (/ object-height 2.0) 1000) (* (/ object-width 2.0) 1000) 0)))
     (dolist (obj mf-obj-lst)
       (when (or (not (stringp tp))
                 (substringp tp (send obj :type))) ;; found target
@@ -262,19 +267,24 @@
           (send tmp-posestamped :header (send object-name :header))
           )))
     (ros::publish "/attention_clipper/input/pose" tmp-posestamped)
-    ;; (send add-req :topic "/roi_attention_clipper/output")
-    ;; (ros::service-call "/image_mux/add" add-req)
-    ;; (send sel-req :topic "/roi_attention_clipper/output")
-    ;; (ros::service-call "/image_mux/select" sel-req)
+    (if mux-flag
+        (progn
+          ;; (send add-req :topic "/roi_attention_clipper/output")
+          ;; (ros::service-call "/image_mux/add" add-req)
+          ;; (send sel-req :topic "/roi_attention_clipper/output")
+          ;; (ros::service-call "/image_mux/select" sel-req)
 
-    ;; (send add-req :topic "/attention_clipper/output")
-    ;; (ros::service-call "/camera_info_mux/add" add-req)
-    ;; (send sel-req :topic "/attention_clipper/output")
-    ;; (ros::service-call "/camera_info_mux/select" sel-req)
+          ;; (send add-req :topic "/attention_clipper/output")
+          ;; (ros::service-call "/camera_info_mux/add" add-req)
+          ;; (send sel-req :topic "/attention_clipper/output")
+          ;; (ros::service-call "/camera_info_mux/select" sel-req)
+          (setq mux-flag nil)
+          ))
     ))
 
 (defun pub-cb (target-obj marker-life force msg)
   (let ((filter-obj))
+    (ros::ros-info "start")
     (detection-interface-objectdetection force target-obj msg)
     (cond
      ((send target-obj :stamp);;for tf error
@@ -292,6 +302,7 @@
      (t
       nil)
      )
+    (ros::ros-info "end")
     )
   )
 
