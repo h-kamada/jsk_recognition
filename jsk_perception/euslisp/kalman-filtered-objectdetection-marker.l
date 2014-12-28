@@ -340,6 +340,10 @@
         (relative-pose-stream (make-string-input-stream relative-pose-str))
         (tmp-pose (instance geometry_msgs::Pose :init))
         (tp (get target-obj :type)))
+
+
+    (ros::unsubscribe "/openni_c2/rgb/image_rect_color")
+
     (send tmp-pose :position :x (read relative-pose-stream nil))
     (send tmp-pose :position :y (read relative-pose-stream nil))
     (send tmp-pose :position :z (read relative-pose-stream nil))
@@ -359,21 +363,29 @@
           ;;(send tmp-posestamped :pose (send obj :pose))
           (send tmp-posestamped :header (send object-name :header))
           )))
-    (ros::publish "/attention_clipper/input/pose" tmp-posestamped)
-    (if mux-flag
-        (progn
-          ;; (send add-req :topic "/roi_attention_clipper/output")
-          ;; (ros::service-call "/image_mux/add" add-req)
-          ;; (send sel-req :topic "/roi_attention_clipper/output")
-          ;; (ros::service-call "/image_mux/select" sel-req)
 
-          ;; (send add-req :topic "/attention_clipper/output")
-          ;; (ros::service-call "/camera_info_mux/add" add-req)
-          ;; (send sel-req :topic "/attention_clipper/output")
-          ;; (ros::service-call "/camera_info_mux/select" sel-req)
-          (setq mux-flag nil)
-          ))
+    (ros::publish "/attention_clipper/input/pose" tmp-posestamped)
     ))
+
+(defun attention-init (msg)
+  (let ((tmp-pose (instance geometry_msgs::Pose :init))
+        (tmp-pose-stamped (instance geometry_msgs::PoseStamped :init))
+        (header (instance std_msgs::header :init))
+        )
+    (send tmp-pose :position :x 0)
+    (send tmp-pose :position :y 0)
+    (send tmp-pose :position :z 0.2)
+    (send tmp-pose :orientation :x 0)
+    (send tmp-pose :orientation :y 0)
+    (send tmp-pose :orientation :z 0)
+    (send tmp-pose :orientation :w 1)
+    (send header :stamp (ros::time 0))
+    (send header :frame_id "/openni_rgb_optical_frame")
+    (send tmp-pose-stamped :pose tmp-pose)
+    (send tmp-pose-stamped :header header)
+    (ros::publish "/attention_clipper/input/pose" tmp-pose-stamped)
+    ))
+
 
 (defun pub-cb (target-obj marker-life force msg)
   (let ((filter-obj))
@@ -461,6 +473,8 @@
     (setq object-width (ros::get-param "~object_width" 0.2))
     (setq object-height (ros::get-param "~object_height" 0.2))
     (setq relative-pose-str (ros::get-param "~relative_pose" "0 0 0 0 0 0 1"))
+    (ros::subscribe "/openni_c2/rgb/image_rect_color"
+                    sensor_msgs::Image #'attention-init)
     (ros::spin)
     )
   )
