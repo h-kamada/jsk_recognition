@@ -5,11 +5,6 @@
 (ros::load-ros-manifest "posedetection_msgs")
 (ros::roseus "marker-publish")
 (ros::roseus-add-msgs "posedetection_msgs")
-(ros::wait-for-service "/image_mux/add")
-(ros::wait-for-service "/image_mux/select")
-(ros::wait-for-service "/camera_info_mux/add")
-(ros::wait-for-service "/camera_info_mux/select")
-
 
 (defvar *detection-topic* "/openni/rgb/ObjectDetection")
 (defvar *base-frame-id* "/base_footprint")
@@ -33,7 +28,6 @@
 (defvar object-width nil)
 (defvar object-height nil)
 (defvar relative-pose-str nil)
-(defvar mux-flag t)
 (defclass kalman-filters
   :super propertied-object
   :slots (kfp kfr)
@@ -335,8 +329,6 @@
 (defun publish-attention (target-obj &key (object-name map-frame-objectdetection))
   (let ((mf-obj-lst (send object-name :objects))
         (tmp-posestamped (instance geometry_msgs::PoseStamped :init))
-        (add-req (instance topic_tools::MuxAddRequest :init))
-        (sel-req (instance topic_tools::MuxSelectRequest :init))
         (relative-pose-stream (make-string-input-stream relative-pose-str))
         (tmp-pose (instance geometry_msgs::Pose :init))
         (tp (get target-obj :type)))
