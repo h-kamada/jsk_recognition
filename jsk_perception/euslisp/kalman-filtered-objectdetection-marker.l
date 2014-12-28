@@ -381,7 +381,6 @@
 
 (defun pub-cb (target-obj marker-life force msg)
   (let ((filter-obj))
-    (ros::ros-info "start")
     (detection-interface-objectdetection force target-obj msg)
     (cond
      ((send target-obj :stamp);;for tf error
@@ -399,7 +398,6 @@
      (t
       nil)
      )
-    (ros::ros-info "end")
     )
   )
 
