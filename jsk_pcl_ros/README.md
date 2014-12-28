@@ -59,6 +59,128 @@ time end
 Represent range of time.
 
 ## nodelets
+### jsk\_pcl/IncrementalModelRegistration
+#### What Is This
+![](images/incremental_model_registration.png)
+
+Build a full-model from sequential captured data.
+
+#### Subscribing Topic
+* `~input` (`sensor_msgs/PointCloud2`)
+
+  Input pointcloud. RGB field is required.
+* `~input/pose` (`geometry_msgs/PoseStamped`)
+
+  Initial pose to estimate acculate pose of the pointcloud.
+* `~input/indices` (`pcl_msgs/PointIndices`)
+
+  Indices to mask object in `~input` pointcloud.
+
+#### Publishing Topic
+* `~output/non_registered` (`sensor_msgs/PointCloud2`)
+
+  Pointcloud just concatenated according to `~input/pose`
+
+### jsk\_pcl/IntermittentImageAnnotator
+#### What Is This
+![](images/intermittent_image_annotator.png)
+![](images/intermittent_image_annotator_pointcloud_clip.png)
+
+1. Store images when `~shutter` service is called
+2. Publish snapshots as one concatenated image
+3. Subscribe `~output/screenrectangle` to get ROI.
+4. Publish ROI information to `~output` namespace.
+5. Publish pointcloud inside of the ROI to `~output/cloud` if `~store_pointcloud` is set
+
+#### Subscribing Topic
+* `~input/image` and `~input/camera_info` (`sensor_msgs/Image` and `sensor_msgs/CameraInfo`)
+
+  Input image and camera info.
+
+* `~input/cloud` (`sensor_msgs/PointCloud2`)
+
+  Input pointcloud to be clipped by specified ROI.
+
+* `~output/screenrectangle` (`geometry_msgs/PolygonStamped`)
+
+  ROI. We expect to use [image_view2](https://github.com/jsk-ros-pkg/jsk_common/tree/master/jsk_ros_patch/image_view2).
+
+#### Publishing Topic
+* `~output` (`sensor_msgs/Image`)
+
+  Snapshots as one concatenated image.
+
+* `~output/direction` (`geometry_msgs/PoseStamped`)
+
+  Direction of ROI as `PoseStamped`. z-axis directs the center of ROI.
+
+* `~output/roi` (`jsk_pcl_ros/PosedCameraInfo`)
+
+  Publish ROI of specified region as `PosedCameraInfo`.
+
+* `~output/cloud` (`sensor_msgs/PointCloud`)
+
+  Pointcloud inside of ROI. pointcloud is stored when `~shutter` service is called and
+  its timestamp will be updated according to the latest image.
+
+* `~output/marker` (`visualization_msgs/Marker`)
+
+  Marker to visualize ROI (`~output/roi`).
+#### Parameters
+* `~fixed_frame_id` (`String`, default: `odom`)
+
+  Fixed frame id to resolve tf.
+
+* `~max_image_buffer` (`Integer`, default: `5`)
+
+  The maximum number of images to store in this nodelet.
+
+* `~store_pointcloud` (`Boolean`, default: `false`)
+
+  Store pointcloud if it's true
+
+* `~keep_organized` (`Boolean`, default: `false`)
+
+  Keep pointcloud organized after clipping by specified ROI.
+
+#### Advertising Service
+
+* `~shutter` (`std_srvs/Empty`)
+
+  Take a snapshot
+
+* `~clear` (`std_srvs/Empty`)
+
+  Clear images stored in the nodelet.
+
+### jsk\_pcl/LINEMODDetector
+#### What Is This
+![](images/linemod_detector.png)
+
+A nodelet to detect object using LINEMOD.
+
+#### Subscribing Topic
+* `~input` (`sensor_msgs/PointCloud2`)
+
+  Input pointcloud.
+
+#### Publishing Topic
+* `~output` (`sensor_msgs/PointCloud2`)
+
+  Result of detection as pointcloud.
+
+#### Parameters
+* `~template_file` (`String`, default: `template.lmt`)
+
+  Template file
+* `~gradient_magnitude_threshold` (`Double`, default: `10.0`)
+
+  Gradient maginutude threshold
+
+* `~detection_threshold` (`Double`, default: `0.75`)
+
+  Detection threshold
+
 ### jsk\_pcl/LINEMODTrainer
 #### What Is This
 
@@ -137,6 +259,20 @@ synchronizing timestamp and republish them into `~output` namespace.
 
 #### Sample
 Please check [capture_multisense_training_data.launch](launch/capture_multisense_training_data.launch).
+
+### jsk\_pcl/MaskImageToPointIndices
+A nodelet to convert mask image (`sensor_msgs::Image`) to `pcl_msgs/PointIndices` for
+organized pointcloud.
+
+#### Subscribing Topic
+* `~input` (`sensor_msgs/Image`)
+
+  Input mask image.
+
+#### Publishing Topic
+* `~output` (`pcl_msgs/PointIndices`)
+
+  Output indices converted from the mask image.
 
 ### jsk\_pcl/PointIndicesToMaskImage
 #### What Is This
