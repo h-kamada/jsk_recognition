@@ -115,9 +115,6 @@
                                              :data (elt (send target-obj :pos) 1)))
             (ros::publish "/raw/z" (instance std_msgs::float32 :init
                                              :data (elt (send target-obj :pos) 2)))
-            
-
-            
             (send tmp-obj :type (send obj :type))
             (setq tmp-obj-lst (append tmp-obj-lst (list tmp-obj)))
             (when (find-method target-obj :update-descendants)
@@ -203,13 +200,13 @@
                                              :data (elt (send tmp-coords :pos) 2)))
                   (ros::publish "/filter/P" (instance std_msgs::float32 :init
                                                               :data (aref (send kf :P) 0 0)))
-
                   (send fo :pose (ros::coords->tf-pose tmp-coords))))
                (t
                 nil)))
             ))
          (t
           nil)))
+      ;;flagの使い方あってる？最初の１回しかkfs-lstに入らない気がするが
       (if flag
           (progn
             (let* ((ps (send (ros::tf-pose->coords (send obj :pose)) :pos))
