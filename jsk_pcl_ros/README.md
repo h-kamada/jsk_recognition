@@ -59,6 +59,286 @@ time end
 Represent range of time.
 
 ## nodelets
+### jsk\_pcl/AddPointIndices
+add two different `pcl_msgs/PointIndices` into one indices.
+
+#### Subscribing Topic
+* `~input/src1` (`pcl_msgs/PointIndices`)
+* `~input/src2` (`pcl_msgs/PointIndices`)
+
+  Input indices
+
+#### Publishing Topic
+* `~output` (`pcl_msgs/PointIndices`)
+
+  Output indices
+
+#### Parameters
+* `approximate_sync` (Boolean, default: `false`)
+
+  If this parameter is true, `~input/src1` and `~input/src2` are synchronized with
+  approximate time policy.
+
+### jsk\_pcl/PolygonToMaskImage
+![](images/polygon_to_mask_image.png)
+
+Convert polygon into mask image.
+
+#### Subscribing Topic
+* `~input` (`geometry_msgs/PolygonStamped`)
+
+  Input 3-D polygon.
+* `~input/camera_info` (`sensor_msgs/CameraInfo`)
+
+  Input camera info to project 3-D polygon.
+
+#### Publishing Topic
+* `~output` (`sensor_msgs/Image`)
+
+  Mask image to fill `~input` polygon. Currently only convex polygon is supported.
+### jsk\_pcl/MaskImageFilter
+![](images/mask_image_filter.png)
+
+Extract indices of pointcloud which is masked by mask image. The pointcloud is no need to be organized.
+
+#### Subscribing Topic
+* `~input` (`sensor_msgs/PointCloud2`)
+
+  Input point cloud.
+* `~input/mask` (`sensor_msgs/Image`)
+
+  Mask image.
+* `~input/camera_info` (`sensor_msgs/CameraInfo`)
+
+  Camera parameters of the image.
+
+#### Publishing Topic
+* `~output` (`pcl_msgs/PointIndices`)
+
+  Indices of the points masked by `~input/mask`.
+
+### jsk\_pcl/ROIToRect
+Convert camera info with ROI to `geometry_msgs/PolygonStamped`.
+
+#### Subscribing Topic
+* `~input` (`sensor_msgs/CameraInfo`)
+
+  Input camera info with ROI filled.
+#### Publishing Topic
+* `~output` (`geometry_msgs/PolygonStamped`)
+
+  Output rectangle region.
+### jsk\_pcl/ROIToMaskImage
+Convert camera info with ROI to mask image.
+
+#### Subscribing Topic
+* `~input` (`sensor_msgs/CameraInfo`)
+
+  Input camera info with ROI filled.
+#### Publishing Topic
+* `~output` (`sensor_msgs/Image`)
+
+  Output mask image.
+### jsk\_pcl/MaskImageToROI
+Convert a mask image into camera info with roi.
+
+#### Subscribing Topic
+* `~input` (`sensor_msgs/Image`)
+
+  Input mask image.
+* `~input/camera_info` (`sensor_msgs/CameraInfo`)
+
+  Original camera info.
+
+#### Publishing Topic
+* `~output` (`sensor_msgs/CameraInfo`)
+
+  Camera info with ROI field filled.
+
+### jsk\_pcl/MaskImageToRect
+Convert a mask image into geometry_msgs::PolygonStamped.
+
+#### Subscribing Topic
+* `~input` (`sensor_msgs/Image`)
+
+  Input mask image.
+
+#### Publishing Topic
+* `~output` (`geometry_msgs/PolygonStamped`)
+
+  PolygonStamped message which only contains two points. Minimum point and Maximum point to represent bounding box in image.
+
+### jsk\_pcl/MaskImageToRect
+### jsk\_pcl/TorusFInder
+![](images/torus_finder.png)
+
+Find a torus out of pointcloud based on RANSAC with 3-D circle model.
+
+#### Subscribing Topic
+* `~input` (`sensor_msgs/PointCloud`)
+
+  Input pointcloud. You may need to choose good candidates of pointcloud.
+
+#### Publishing Topic
+
+* `~output` (`jsk_pcl_ros/Torus`)
+
+  Output of detection.
+
+* `~output/inliers` (`pcl_msgs/PointIndices`)
+* `~output/coefficients` (`pcl_msgs/ModelCoefficients`)
+
+  Inliers and coefficients which represents detection result.
+* `~output/array` (`jsk_pcl_ros/TorusArray`)
+
+  Array of torus. It will be used for visualization.
+
+#### Parameters
+* `~min_radius` (Double, default: `0.1`)
+* `~max_radius` (Double, default: `1.0`)
+
+  Minimum and maximum radius of torus.
+* `~min_size` (Integer, default: `10`)
+
+  Minimum number of inliers.
+* `~outlier_threshold` (Double, default: `0.01`)
+
+  Outlier threshold used in RANSAC.
+* `~max_iterations` (Integer, default: `100`)
+
+  Maximum number of iterations of RANSAC.
+### jsk\_pcl/RectToROI
+Convert rectangle (`geometry_msgs/Polygon`) into ROI with camera info (`sensor_msgs/CameraInfo`).
+
+We expect it will be used with image_view2.
+
+#### Subscribing Topic
+* `~input` (`geometry_msgs/Polygon`)
+
+  Polygon to represent rectangle region of image.
+* `~input/camera_info` (`sensor_msgs/CameraInfo`)
+
+  Original camera info.
+
+#### Publishing Topic
+* `~output` (`sensor_msgs/CameraInfo`)
+
+  camera info with ROI filled by `~input`.
+
+### jsk\_pcl/RectToMaskImage
+Convert rectangle (`geometry_msgs/Polygon`) into mask image (`sensor_msgs/Image`)
+
+We expect it will be used with image_view2.
+
+#### Subscribing Topic
+* `~input` (`geometry_msgs/Polygon`)
+
+  Polygon to represent rectangle region of image.
+* `~input/camera_info` (`sensor_msgs/CameraInfo`)
+
+  Original camera info.
+
+#### Publishing Topic
+* `~output` (`sensor_msgs/Image`)
+
+  Mask image.
+
+### jsk\_pcl/AddColorFromImage
+![](images/add_color_from_image)
+
+Add color to pointcloud (no need to be organized) from image and camera info.
+
+### Subscribing Topic
+* `~input` (`sensor_msgs/PointCloud`)
+
+  Input point cloud to add color. No need to be an organized pointcloud.
+* `~input/image` (`sensor_msgs/Image`)
+
+  BGR8 color image.
+* `~input/camera_info` (`sensor_msgs/CameraInfo`)
+
+  Camera parameters of `~input/image`
+
+### Publishing Topic
+* `~output` (`sensor_msgs/PointCloud`)
+
+  Output colored pointcloud.
+
+### jsk\_pcl/PlaneConcatenator
+![](image/plane_concatenator.png)
+
+Concatenate near planes and build new set of planes.
+
+#### Subscribing Topic
+* `~input` (`sensor_msgs/PointCloud2`)
+
+  Input pointcloud.
+* `~input/indices` (`jsk_pcl_ros/ClusterPointIndices`)
+* `~input/polygons` (`jsk_pcl_ros/PolygonArray`)
+* `~input/coefficients` (`jsk_pcl_ros/ModelCoefficientsArray`)
+  Input planes.
+
+#### Publishing Topics
+* `~output/indices` (`jsk_pcl_ros/ClusterPointIndices`)
+* `~output/polygons` (`jsk_pcl_ros/PolygonArray`)
+* `~output/coefficients` (`jsk_pcl_ros/ModelCoefficientsArray`)
+  Concatenated planes. Coefficients parameters are refined by RANSAC.
+
+#### Parameters
+* `~connect_angular_threshold` (Double, default: `0.1`)
+
+   Angular threshold to regard two planes as near.
+* `~connect_distance_threshold` (Double, default: `0.1`)
+
+   Euclidean distance threshold to regard two planes as near.
+* `~ransac_refinement_max_iteration` (Integer, default: `100`)
+
+  The maximum number of iteration of RANSAC refinement.
+* `~ransac_refinement_outlier_threshold` (Double, default: `0.1`)
+
+  Outlier threshold of RANSAC refinmenet.
+* `~ransac_refinement_eps_angle` (Double, default: `0.1`)
+
+  Eps angle threshold of RANSAC refinment using normal direction of the plane.
+### jsk\_pcl/SupervoxelSegmentation
+![](images/supervoxel_segmentation.png)
+
+Segment pointcloud based on Supervoxel technique.
+see Voxel Cloud Connectivity Segmentation - Supervoxels for Point Clouds (J. Papon et al. CVPR2013).
+#### Subscribing Topic
+* `~input` (`sensor_msgs/PointCloud2`)
+
+  Input pointcloud. It should have rgb field.
+
+#### Publishing Topic
+* `~output/cloud` (`sensor_msgs/PointCloud2`)
+
+  Output pointcloud downsampled by voxel grid.
+
+* `~output/indices` (`jsk_pcl_ros/ClusterPointIndices`)
+
+  Clustering result.
+
+#### Parameters
+* `~color_importance` (`Double`, default: `0.2`)
+
+  Color importance factor.
+* `~spatial_importance` (`Double`, default: `0.4`)
+
+  Spatial importance factor.
+* `~normal_importance` (`Double`, default: `1.0`)
+
+  Normal importance factor.
+* `~use_transform` (`Boolean`, default: `True`)
+
+  Use single cloud transform
+* `~seed_resolution` (`Double`, default: `0.1`)
+
+  Seed resolution of super voxels.
+* `~voxel_resolution` (`Double`, default: `0.008`)
+
+  Voxel grid resolution of super voxels.
+
 ### jsk\_pcl/IncrementalModelRegistration
 #### What Is This
 ![](images/incremental_model_registration.png)
@@ -80,6 +360,14 @@ Build a full-model from sequential captured data.
 * `~output/non_registered` (`sensor_msgs/PointCloud2`)
 
   Pointcloud just concatenated according to `~input/pose`
+
+* `~output/registered` (`sensor_msgs/PointCloud2`)
+
+  Pointcloud refined by ICP.
+#### Using Services
+* `~icp_service` (`jsk_pcl_ros/ICPAlign`)
+
+  ICP service interface to refine model.
 
 ### jsk\_pcl/IntermittentImageAnnotator
 #### What Is This
@@ -169,8 +457,20 @@ A nodelet to detect object using LINEMOD.
 
   Result of detection as pointcloud.
 
+* `~output/mask` (`sensor_msgs/Image`)
+
+  Result of detection as mask image.
+
+* `~output/pose` (`geometry_msgs/PoseStamped`)
+
+  Pose of detected template
+
+* `~output/template` (`sensor_msgs/PointCloud2`)
+
+  Template pointcloud at identity pose.
+
 #### Parameters
-* `~template_file` (`String`, default: `template.lmt`)
+* `~template_file` (`String`, default: `template`)
 
   Template file
 * `~gradient_magnitude_threshold` (`Double`, default: `10.0`)
@@ -183,6 +483,8 @@ A nodelet to detect object using LINEMOD.
 
 ### jsk\_pcl/LINEMODTrainer
 #### What Is This
+![](images/linemod_trainer.png)
+
 
 A nodelet to train LINEMOD data from pointcloud and indices to mask the objects.
 This nodelet stores data of pointcloud and if you call `~start_training` service,
@@ -196,6 +498,17 @@ it will train the data and dump the templates into lmt file.
 
   Indices to mask object in `~input` pointcloud.
 
+* `~input/info` (`sensor_msgs/CameraInfo`)
+
+  Camera parameter to sample viewpoint.
+
+#### Publishing Topic
+* `~output/range_image` (`sensor_msgs/Image`)
+* `~output/colored_range_image` (`sensor_msgs/Image`)
+* `~output/sample_cloud` (`sensor_msgs/PointCloud2`)
+
+  Image and pointcloud generated by viewpoint sampling.
+
 #### Advertising Servicies
 * `~start_training` (`std_srvs/Empty`)
 
@@ -205,9 +518,22 @@ it will train the data and dump the templates into lmt file.
 
   Clear stored data.
 #### Parameters
-* `~output_file` (`String`, default: `template.lmt`)
+* `~output_file` (`String`, default: `template`)
 
    A file path to dump trained data.
+
+* `~sample_viewpoint` (`Bool`, default: `True`)
+
+  Generate training data by samplingenerating viewpoint if this parameter is set to true.
+
+* `~sample_viewpoint_angle_step` (`Double`, default: `40.0`)
+* `~sample_viewpoint_angle_min` (`Double`, default: `-80.0`)
+* `~sample_viewpoint_angle_max` (`Double`, default: `80.0`)
+* `~sample_viewpoint_radius_step` (`Double`, default: `0.2`)
+* `~sample_viewpoint_radius_min` (`Double`, default: `0.4`)
+* `~sample_viewpoint_radius_max` (`Double`, default: `0.8`)
+
+  Viewpoint sampling parameters. Pose of model is sampled by golden ratio spatial technique.
 
 ### jsk\_pcl/CaptureStereoSynchronizer
 #### What Is This
@@ -318,23 +644,63 @@ to see the object.
   Original pointcloud.
 * `~input/pose` (`geometry_msgs/PoseStamped`)
 * `~input/box` (`jsk_pcl_ros/BoundingBox`)
-  Specify the pose of the bounding box. Timestamp will be ignored and camera info's timestamp will be used. If you use `~input/box`, you can change the size of attention region.
+  Specify the pose of the bounding box. Timestamp will be ignored and camera info's timestamp will be used. If you use `~input/box`, you can change the size of attention region. There callbacks are only enabled if `~use_multiple_attention` is false.
 
+* `~input/pose_array` (`geometry_msgs/PoseArray`)
+* `~input/box_array` (`jsk_pcl_ros/BoundingBoxArray`)
+  It's an array version of `~input/pose` and `~input/box`. There callbacks are only enabled if `~use_multiple_attention` is true.
 #### Publishing Topic
 * `~output` (`sensor_msgs/CameraInfo`)
 
   This camera info is same with `~input` except for roi field.
 
+* `~output/mask` (`sensor_msgs/Image`)
+
+  Mask image to mask the regions of specified interest.
+
+* `~output/point_indices` (`pcl_msgs/PointIndices`)
+
+  Indices of `~input/points` which are inside of interest regions.
+
 #### Parameter
+* `~use_multiple_attention` (Boolean, default: `False`)
+
+  If you want to enable multiple attentions, please set this variable True.
+
 * `~dimension_x` (Double, default: `0.1`)
 * `~dimension_y` (Double, default: `0.1`)
 * `~dimension_z` (Double, default: `0.1`)
 
-  Size of bounding box
+  Size of bounding box. Available only if `~use_multiple_attention` is false.
 
+* `~frame_id` (String, default: `base_link`)
+
+  Frame id of attention region. Available only if `~use_multiple_attention` is false.
+
+* `~initial_pos` (Array of double, default: `None`):
+
+  Initial pose of interesting region. Available only if `~use_multiple_attention` is false.
+
+* `~initial_rot` (Array of double, default: `None`):
+
+  Initial orientation of interesting region. The value should be represented in
+  [roll, pitch, yaw]. Available only if `~use_multiple_attention` is false.
+
+* `~initial_pos_list` (Array of array of double, default: `None`)
+* `~initial_rot_list` (Array of array of double, default: `None`)
+* `~frame_id_list` (Array of string, default: `None`)
+* `~dimensions` (Array of array of double, default: `None`)
+
+  Position, Rotation, frame id and Dimensions of multiple attention regions respectively.
+  `~iniital_pos_list` should follow `[[x, y, z], ...]`,
+  `~initial_rot_list` should follow `[[rx, ry, rz], ...]` and
+  `~dimensions` should follow `[[x, y, z], ...]`.
+  Available only if `~use_multiple_attention` is true.
 ### jsk\_pcl/ROIClipper
 #### What Is This
 ![](images/attention_clipper.png)
+
+![](images/roi_clipper_pointcloud.png)
 
 It retrives `sensor_msgs/Image` and `sensor_msgs/CameraInfo` and publish `sensor_msgs/Image` of ROI.
 It is similar to `image_proc/crop_decimate` but you can use `CameraInfo/roi` field to specify ROI.
@@ -349,7 +715,11 @@ We expect to use jsk\_pcl/ROIClipper with jsk\_pcl/AttentionClipper to get ROI i
 
   Camera parameter and ROI field should be filled.
 
-  These two topic should be synchronized.
+  These two topic should be synchronized if `~not_sync` is not false.
+
+* `~input/cloud` (`sensor_msgs/PointCloud2`)
+
+  This topic is only enabled if `~not_sync` is true.
 #### Publishing Topic
 * `~output` (`sensor_msgs/Image`)
 
@@ -358,6 +728,16 @@ We expect to use jsk\_pcl/ROIClipper with jsk\_pcl/AttentionClipper to get ROI i
 * `~output/point_indices` (`pcl_msgs/PointIndices`)
 
   The indices of the pointcloud which is inside of the interest 3-D region.
+
+* `~output/cloud` (`sensor_msgs/PointCloud2`)
+
+  PointCloud clipped from `~input/cloud` and `~input/camera_info`.
+
+#### Parameter
+* `~not_sync` (Bool, default: `False`)
+
+  If ~not_sync is true, do not need to synchronize camera info and other input topics, and
+  pointcloud clipping is enabled.
 ### jsk\_pcl/NormalDirectionFilter
 ![NormalDirectionFilter](images/normal_direction_filter.png)
 
@@ -404,7 +784,7 @@ Extract the points above the planes between `~min_height` and `~max_height`.
 * `~input_polygons` (`jsk_pcl_ros/PolygonArray`)
 * `~input_coefficients` (`jsk_pcl_ros/ModelCoefficientsArray`):
 
-   The input planes.
+   The input planes. If `~use_indices` parameter is false, `~indices` will not be used.
 #### Publishing Topics
 * `~output` (`sensor_msgs/PointCloud2`):
 
@@ -421,6 +801,12 @@ Extract the points above the planes between `~min_height` and `~max_height`.
 * `~max_queue_size` (Integer, default: `100`)
 
    Queue length for subscribing topics.
+
+* `~use_indices` (Bool, default: `True`)
+
+   Use indices of planar regions to filter if it's set true.
+   You can disable this parameter to filter pointcloud which is not the same pointcloud
+   to segment planes
 
 ### jsk\_pcl/RegionGrowingMultiplePlaneSegmentation
 ![jsk_pcl/RegionGrowingMultiplePlaneSegmentation](images/region_growing_multiple_plane_segmentation.png).
@@ -620,6 +1006,11 @@ You can choose several types of tilt/spindle lasers such as tilt-laser of PR2, i
    It should be remapped to `assemble_scans2` service of
    [laser_assembler](http://wiki.ros.org/laser_assembler).
 
+#### Advertising Service
+* `~clear_cache` (`std_srvs/Empty`)
+
+   Clear cache and restart collecting data.
+
 #### Parameters
 * `~use_laser_assembler` (Boolean, default: `False`):
 
@@ -641,7 +1032,10 @@ You can choose several types of tilt/spindle lasers such as tilt-laser of PR2, i
    5. `infinite_spindle_half`: Infinite spindle laser, but most of laser has over 180 degrees range of field.
    Therefore we don't need to rotate laser 360 degrees to scan 3-D space, just 180 degree rotation is required.
    In this mode, TiltLaserListener publishes time range a time range of 180 degree rotation.
+* `~overwrap_angle` (Double, default: `0.0`)
 
+   overwrap angle offset when detecting time range.
+   Only available in `infinite_spindle` and `infinite_spindle_half`.
 ### jsk\_pcl/DepthImageCreator
 #### What is this
 Create *organized* pointcloud from non-organized pointcloud.
@@ -938,19 +1332,93 @@ roslaunch jsk_pcl_ros keypoints_publisher.launch
 ```
 ### jsk\_pcl/HintedPlaneDetector
 #### What Is This
+![](images/hinted_plane_detector.png)
+Estimate plane parameter from small 'hint' pointcloud and grow it to detect larger plane.
 
+Algorithm is:
 
-This nodelet will snap the plane to the real world pointcloud.
-Move the interactive marker and the snapped plane will follow the movement.
+1. Detect hint plane from small hint pointcloud using RANSAC
+2. Filter `~input` pointcloud based on distance and normal direction with hint plane.
+3. Detect plane from the pointcloud using RANSAC
+4. Segment clusters out of the inliers of the detected plane based on euclidean metrics
+5. Apply density filter
+6. Extract points from the nearest segmented clusters to the centroid of hint plane
+7. Compute convex hull of the extracted points
 
-#### Sample
+#### Subscribing Topic
 
-Plug the depth sensor which can be launched by openni.launch and run the below command.
+* `~input` (`sensor_msgs/PointCloud`)
 
+  Input pointcloud. It is required to have normal and xyz fields.
 
-```
-roslaunch jsk_pcl_ros hinted_plane_detector_sample.launch
-```
+* `~input/hint/cloud` (`sensor_msgs/PointCloud`)
+
+  Hint pointcloud to estimate plane parameter and only xyz fieleds are required.
+
+#### Publishing Topic
+
+* `~output/polygon` (`geometry_msgs/PolygonStamped`)
+* `~output/polygon_array` (`jsk_pcl_ros/PolygonArray`)
+* `~output/inliers` (`pcl_msgs/PointIndices`)
+* `~output/coefficients` (`pcl_msgs/ModelCoefficients`)
+
+  Result of detection.
+
+* `~output/hint/polygon` (`geometry_msgs/PolygonStamped`)
+* `~output/hint/polygon_array` (`jsk_pcl_ros/PolygonArray`)
+* `~output/hint/inliers` (`pcl_msgs/PointIndices`)
+* `~output/hint/coefficients` (`pcl_msgs/ModelCoefficients`)
+
+  Result of detection of hint pointcloud.
+* `~output/polygon_before_filtering` (`geometry_msgs/PolygonStamped`)
+* `~output/polygon_array_before_filtering` (`jsk_pcl_ros/PolygonArray`)
+
+  Result of detection before euclidean filtering.
+* `~output/hint_filtered_indices` (`pcl_msgs/PointIndices`)
+* `~output/plane_filtered_indices` (`pcl_msgs/PointIndices`)
+* `~output/density_filtered_indices` (`pcl_msgs/PointIndices`)
+* `~output/euclidean_filtered_indices` (`pcl_msgs/PointIndices`)
+
+  Candidate point indices filtered by each filtering phase.
+
+#### Parameters
+* `~hint_outlier_threshold`
+
+  Outlier threshold to detect hint plane using RANSAC
+* `~hint_max_iteration`
+
+  Maximum iteration number to detect hint plane using RANSAC
+* `~hint_min_size`
+
+  Minimum number of inliers in hint plane
+* `~outlier_threashold`
+
+  Outlier threshold to detect larger plane using RANSAC
+* `~max_iteration`
+
+  Maximum iteration number to detect larger plane using RANSAC
+* `~min_size`
+
+  Minimum number of inliers in larger plane
+* `~eps_angle`
+
+  EPS angle to detect larger plane and normal direction is computed from hint plane.
+* `~normal_filter_eps_angle`
+
+  EPS angle to filter candidate points before detecting larger plane.
+  Normal direction is computed from hint plane.
+* `~euclidean_clustering_filter_tolerance`
+
+  Tolerance distance in euclidean clustering to filter far points.
+* `~euclidean_clustering_filter_min_size`
+
+  Minimum cluster size in euclidean clustering to filter far points.
+
+* `~density_radius` (Double, default: `0.1`)
+* `~density_num` (Integer, default: `10`)
+
+  These parameters are used in density filtering. The only points which have `~density_num` neighbors within
+  `~density_radius` distance are passed.
 
 ### jsk\_pcl/OctreeChangeDetector
 #### What Is This
@@ -968,9 +1436,6 @@ roslaunch jsk_pcl_ros octree_change_detector.launch
 ```
 
 #### Speed
-
-### jsk\_pcl/ROIClipper
-#### What Is This
 
 ### jsk\_pcl/TfTransformCloud
 #### What Is This

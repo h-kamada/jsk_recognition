@@ -55,7 +55,7 @@ namespace jsk_pcl_ros
       NODELET_ERROR("no ~joint_state is specified");
       return;
     }
-    
+    pnh_->param("overwrap_angle", overwrap_angle_, 0.0);
     std::string laser_type;
     pnh_->param("laser_type", laser_type, std::string("tilt_half_down"));
     if (laser_type == "tilt_half_up") {
@@ -87,7 +87,9 @@ namespace jsk_pcl_ros
     prev_angle_ = 0;
     prev_velocity_ = 0;
     start_time_ = ros::Time::now();
-    
+    clear_cache_service_ = pnh_->advertiseService(
+      "clear_cache", &TiltLaserListener::clearCacheCallback,
+      this);
     trigger_pub_ = advertise<jsk_pcl_ros::TimeRange>(*pnh_, "output", 1);
     
   }
@@ -108,6 +110,15 @@ namespace jsk_pcl_ros
 
   }
 
+  bool TiltLaserListener::clearCacheCallback(
+    std_srvs::Empty::Request& req,
+    std_srvs::Empty::Response& res)
+  {
+    boost::mutex::scoped_lock lock(mutex_);
+    buffer_.clear();
+    return true;
+  }
+  
   void TiltLaserListener::publishTimeRange(
     const ros::Time& stamp,
     const ros::Time& start,
@@ -123,7 +134,9 @@ namespace jsk_pcl_ros
       srv.request.begin = start;
       srv.request.end = end;
       assemble_cloud_srv_.call(srv);
-      cloud_pub_.publish(srv.response.cloud);
+      sensor_msgs::PointCloud2 output_cloud = srv.response.cloud;
+      output_cloud.header.stamp = stamp;
+      cloud_pub_.publish(output_cloud);
     }
   }
   
@@ -206,15 +219,17 @@ namespace jsk_pcl_ros
         }
         else {                  // already jumped
           if (velocity > 0) {
-            if (buffer_[i-1]->getValue() < threshold) {
+            if (buffer_[i-1]->getValue() < fmod(threshold - overwrap_angle_, 2.0 * M_PI)) {
               publishTimeRange(stamp, buffer_[i-1]->header.stamp, stamp);
               buffer_.removeBefore(buffer_[i-1]->header.stamp);
+              break;
             }
           }
           else if (velocity < 0) {
-            if (buffer_[i-1]->getValue() > threshold) {
+            if (buffer_[i-1]->getValue() > fmod(threshold + overwrap_angle_, 2.0 * M_PI)) {
               publishTimeRange(stamp, buffer_[i-1]->header.stamp, stamp);
               buffer_.removeBefore(buffer_[i-1]->header.stamp);
+              break;
             }
           }
         }
@@ -230,6 +245,7 @@ namespace jsk_pcl_ros
   void TiltLaserListener::jointCallback(
     const sensor_msgs::JointState::ConstPtr& msg)
   {
+    boost::mutex::scoped_lock lock(mutex_);
     vital_checker_->poke();
     for (size_t i = 0; i < msg->name.size(); i++) {
       std::string name = msg->name[i];

@@ -143,7 +143,6 @@ namespace jsk_pcl_ros
     virtual double distanceToPoint(const Eigen::Vector4f p);
     virtual double signedDistanceToPoint(const Eigen::Vector3f p);
     virtual double distanceToPoint(const Eigen::Vector3f p);
-    
     virtual double distance(const Plane& another);
     virtual double angle(const Plane& another);
     virtual double angle(const Eigen::Vector3f& vector);
@@ -188,11 +187,13 @@ namespace jsk_pcl_ros
       size_t index,
       const Eigen::Vector3f& direction);
     virtual PtrPair separatePolygon(size_t index);
+    virtual bool isInside(const Eigen::Vector3f& p);
     size_t previousIndex(size_t i);
     size_t nextIndex(size_t i);
     static Polygon fromROSMsg(const geometry_msgs::Polygon& polygon);
     static Polygon createPolygonWithSkip(const Vertices& vertices);
     virtual bool isConvex();
+    virtual Eigen::Vector3f centroid();
     template<class PointT> void boundariesToPointCloud(
       pcl::PointCloud<PointT>& output) {
       output.points.resize(vertices_.size());
@@ -230,7 +231,6 @@ namespace jsk_pcl_ros
     virtual void projectOnPlane(const Eigen::Vector3f& p, Eigen::Vector3f& output);
     virtual bool isProjectableInside(const Eigen::Vector3f& p);
     // p should be a point on the plane
-    virtual bool isInside(const Eigen::Vector3f& p);
     virtual ConvexPolygon flipConvex();
     virtual Eigen::Vector3f getCentroid();
     virtual Ptr magnify(const double scale_factor);
@@ -313,6 +313,22 @@ namespace jsk_pcl_ros
   private:
     
   };
+
+  template <class PointT>
+  BoundingBox boundingBoxFromPointCloud(const pcl::PointCloud<PointT>& cloud)
+  {
+    Eigen::Vector4f minpt, maxpt;
+    pcl::getMinMax3D<PointT>(cloud, minpt, maxpt);
+    BoundingBox bbox;
+    bbox.dimensions.x = std::abs(minpt[0] - maxpt[0]);
+    bbox.dimensions.y = std::abs(minpt[1] - maxpt[1]);
+    bbox.dimensions.z = std::abs(minpt[2] - maxpt[2]);
+    bbox.pose.position.x = (minpt[0] + maxpt[0]) / 2.0;
+    bbox.pose.position.y = (minpt[1] + maxpt[1]) / 2.0;
+    bbox.pose.position.z = (minpt[2] + maxpt[2]) / 2.0;
+    bbox.pose.orientation.w = 1.0;
+    return bbox;
+  }
   
 }
 

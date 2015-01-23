@@ -2,6 +2,72 @@
 Changelog for package jsk_pcl_ros
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.1.32 (2015-01-12)
+-------------------
+* add Torus.msg and TorusArrray.msg
+* [jsk_pcl_ros, checkerboard_detector] Fix offset from checker board
+* [jsk_pcl_ros] Use pcl::LINEMOD in LINEMODDetector for memory efficiency
+* [jsk_pcl_ros] Use linemod class when training linemod template
+* [jsk_pcl_ros] tune parameter of multi plane based object detection using
+  spindle laser
+* Contributors: Ryohei Ueda, Yuto Inagaki
+
+0.1.31 (2015-01-08)
+-------------------
+* Merge pull request #563 from garaemon/no-indices-for-multi-plane-extraction
+  [jsk_pcl_ros] Parameter to disable indices in MultiPlaneExtraction
+* [jsk_pcl_ros] Do not use indices in MultiPlaneExtraction
+* Merge pull request #562 from garaemon/add-plane-concatenator
+  [jsk_pcl_ros] PlaneConcatenator: nodelet to concatenate near planes
+* [jsk_pcl_ros] PlaneConcatenator: nodelet to concatenate near planes
+* Merge pull request #561 from garaemon/add-clear-cache-service
+  [jsk_pcl_ros] Add ~clear_cache service to TiltLaserListener
+* [jsk_pcl_ros] Add ~clear_cache service to restart collecting
+  laser data in TiltLaserListener
+* [jsk_pcl_ros] Support multiple interest region in AttentionClipper
+* [jsk_pcl_ros] Support initial pose of AttentionClipper
+* [jsk_pcl_ros/LINEMODTrainer] Use wildcard in compressing data to
+  generate ltm
+* [jsk_pcl_ros] Multithread safe LINEMODTrainer by avoiding
+  pcl::RangeImage non-thread safe initialization
+* [jsk_pcl_ros] Do not publish range image (It's not stable under OpenMP)
+  and use directory rather than filename when calling tar
+* [jsk_pcl_ros] Train linemod with OpenMP and publish range image
+  with color
+* [jsk_pcl_ros] Utility launch file and scripts to training LINEMOD from
+  bag file
+* [jsk_pcl_ros] Add image for LINEMODTrainer documentation
+* [jsk_pcl_ros] Decrease memory usage when training LINEMOD
+* [jsk_pcl_ros] Sampling viewpoint to generate training data
+  for LINEMOD
+* [jsk_pcl_ros] Remove linemod rotation quantization
+* [jsk_pcl_ros] Use triangle decomposition to check a point is inside
+  or not of polygon
+* [jsk_pcl_ros] Add picture of LINEMODDetector
+* [jsk_pcl_ros] SupervoxelSegmentation: new nodelet to wrap
+  pcl::SupervoxelClustering
+* [jsk_pcl_ros] Refine Model by ICP in IncrementalModelRegistration
+* [jsk_pcl_ros] Add simple icp service to ICPRegistration
+* [jsk_pcl_ros] add utility launch file to capture training data from multisense
+* [jsk_pcl_ros] Publish the number of samples from CaptureStereoSynchronizer
+* [jsk_pcl_ros] Fix when ROI is outside of the image in AttentionClipper
+* [jsk_pcl_ros] Fix when ROI is outside of the image in AttentionClipper
+* Merge pull request #532 from garaemon/add-mask-image-to-point-indices
+  [jsk_pcl_ros] Add MaskImageToPointIndices
+* Merge pull request #531 from garaemon/add-incremental-pointcloud-registration
+  [jsk_pcl_ros] IncrementalModelRegistration Add new nodelet to build full 3d model from sequentially captured pointcloud
+* fix to compile on indigo #529
+* [jsk_pcl_ros] MaskImageToPointIndices: add nodelet to convert mask image to point indices
+* [jsk_pcl_ros] Add new nodelet to build full 3d model from
+  sequentially captured pointcloud: IncrementalModelRegistration
+* [jsk_pcl_ros] untabify icp_registration_nodelet.cpp
+* [jsk_pcl_ros] update document of IntermittentImageAnnotator
+* [jsk_pcl_ros] Storing pointcloud and publish pointcloud inside
+  of ROI specified
+* [jsk_pcl_ros] Visualize selected ROI as marker in IntermittentImageAnnotator
+* [jsk_pcl_ros] Add ~rate parameter to throttle image publishing from IntermittentImageAnnotator
+* add camera frame param to handle_estimator.l
+
 0.1.30 (2014-12-24)
 -------------------
 * Publish specified ROI as PosedCameraInfo in IntermittentImageAnnotator
@@ -77,7 +143,7 @@ Changelog for package jsk_pcl_ros
 * changet pointcloud_screen_point not to use jsconnection_based_nodelet
 * Use jsk_topic_tools::ConnectionBasedNodelet in BilateralFilter,
   BorderEstimator, BoundingBoxFilter and so on
-* Contributors: Ryohei Ueda, Shunichi Nozawa, Yu Ohara, Yuto Inagaki
+* Contributors: Ryohei Ueda, Shunichi Nozawa, Yuto Inagaki, Yu Ohara
 
 0.1.26 (2014-11-23)
 -------------------
@@ -544,7 +610,7 @@ Changelog for package jsk_pcl_ros
 * make paritcal_filter_tracking_nodelet publish tracked object tf trasnformation
 * add two launch files to run openni on remote machine
 * add octree_change_detector
-* Contributors: Chan Wesley, Shunichi Nozawa, Yuto Inagaki, Masaki Murooka, Ryo Terasawa, Ryohei Ueda, Yohei Kakiuchi, Yusuke Furuta, Kei Okada
+* Contributors: Ryo Terasawa, Shunichi Nozawa, Yuto Inagaki, Masaki Murooka, Yohei Kakiuchi, Ryohei Ueda, Chan Wesley, Yusuke Furuta, Kei Okada
 
 0.1.4 (2014-04-25)
 ------------------

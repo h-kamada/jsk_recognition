@@ -48,6 +48,8 @@ add_message_files(FILES PointsArray.msg ClusterPointIndices.msg Int32Stamped.msg
   BoundingBox.msg
   BoundingBoxArray.msg
   BoundingBoxMovement.msg
+  Torus.msg
+  TorusArray.msg
   ColorHistogram.msg
   ColorHistogramArray.msg
   SparseOccupancyGridCell.msg
@@ -71,10 +73,14 @@ add_service_files(FILES SwitchTopic.srv
   CallSnapIt.srv CallPolygon.srv
   EnvironmentLock.srv
   PolygonOnEnvironment.srv
-  ICPAlignWithBox.srv)
+  ICPAlignWithBox.srv
+  ICPAlign.srv)
 
 # generate the dynamic_reconfigure config file
 generate_dynamic_reconfigure_options(
+  cfg/HintedPlaneDetector.cfg
+  cfg/TorusFinder.cfg
+  cfg/PlaneConcatenator.cfg
   cfg/NormalDirectionFilter.cfg
   cfg/RegionGrowingMultiplePlaneSegmentation.cfg
   cfg/LineSegmentCollector.cfg
@@ -104,6 +110,7 @@ generate_dynamic_reconfigure_options(
   cfg/MultiPlaneSACSegmentation.cfg
   cfg/BoundingBoxFilter.cfg
   cfg/LINEMODDetector.cfg
+  cfg/SupervoxelSegmentation.cfg
   )
 
 find_package(OpenCV REQUIRED core imgproc)
@@ -112,6 +119,8 @@ include_directories(include ${catkin_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 
 if(EXISTS ${jsk_topic_tools_SOURCE_DIR}/cmake/nodelet.cmake)
   include(${jsk_topic_tools_SOURCE_DIR}/cmake/nodelet.cmake)
+elseif(EXISTS ${jsk_topic_tools_SOURCE_PREFIX}/cmake/nodelet.cmake)
+  include(${jsk_topic_tools_SOURCE_PREFIX}/cmake/nodelet.cmake)
 else(EXISTS ${jsk_topic_tools_SOURCE_DIR}/cmake/nodelet.cmake)
   include(${jsk_topic_tools_PREFIX}/share/jsk_topic_tools/cmake/nodelet.cmake)
 endif(EXISTS ${jsk_topic_tools_SOURCE_DIR}/cmake/nodelet.cmake)
@@ -273,12 +282,39 @@ jsk_pcl_nodelet(src/intermittent_image_annotator_nodelet.cpp
   "jsk_pcl/IntermittentImageAnnotator" "intermittent_image_annotator")
 jsk_pcl_nodelet(src/incremental_model_registration_nodelet.cpp
   "jsk_pcl/IncrementalModelRegistration" "incremental_model_registration")
+jsk_pcl_nodelet(src/supervoxel_segmentation_nodelet.cpp
+  "jsk_pcl/SupervoxelSegmentation" "supervoxel_segmentation")
+jsk_pcl_nodelet(src/plane_concatenator_nodelet.cpp
+  "jsk_pcl/PlaneConcatenator" "plane_concatenator")
+jsk_pcl_nodelet(src/add_color_from_image_nodelet.cpp
+  "jsk_pcl/AddColorFromImage" "add_color_from_image")
+jsk_pcl_nodelet(src/rect_to_roi_nodelet.cpp
+  "jsk_pcl/RectToROI" "rect_to_roi")
+jsk_pcl_nodelet(src/rect_to_mask_image_nodelet.cpp
+  "jsk_pcl/RectToMaskImage" "rect_to_mask_image")
+jsk_pcl_nodelet(src/torus_finder_nodelet.cpp
+  "jsk_pcl/TorusFinder" "torus_finder")
+jsk_pcl_nodelet(src/mask_image_to_roi_nodelet.cpp
+  "jsk_pcl/MaskImageToROI" "mask_image_to_roi")
+jsk_pcl_nodelet(src/mask_image_to_rect_nodelet.cpp
+  "jsk_pcl/MaskImageToRect" "mask_image_to_rect")
+jsk_pcl_nodelet(src/roi_to_rect_nodelet.cpp
+  "jsk_pcl/ROIToRect" "roi_to_rect")
+jsk_pcl_nodelet(src/roi_to_mask_image_nodelet.cpp
+  "jsk_pcl/ROIToMaskImage" "roi_to_mask_image")
+jsk_pcl_nodelet(src/mask_image_filter_nodelet.cpp
+  "jsk_pcl/MaskImageFilter" "mask_image_filter")
+jsk_pcl_nodelet(src/polygon_to_mask_image_nodelet.cpp
+  "jsk_pcl/PolygonToMaskImage" "polygon_to_mask_image")
+jsk_pcl_nodelet(src/add_point_indices_nodelet.cpp
+  "jsk_pcl/AddPointIndices" "add_point_indices")
 add_library(jsk_pcl_ros SHARED ${jsk_pcl_nodelet_sources}
   src/grid_index.cpp src/grid_map.cpp src/grid_line.cpp src/geo_util.cpp
   src/pcl_conversion_util.cpp src/pcl_util.cpp
   src/pointcloud_moveit_filter.cpp
-  src/tf_listener_singleton.cpp)
-target_link_libraries(jsk_pcl_ros ${catkin_LIBRARIES} ${pcl_ros_LIBRARIES} ${OpenCV_LIBRARIES})
+  src/tf_listener_singleton.cpp
+  src/viewpoint_sampler.cpp)
+target_link_libraries(jsk_pcl_ros ${catkin_LIBRARIES} ${pcl_ros_LIBRARIES} ${OpenCV_LIBRARIES} yaml-cpp)
 add_dependencies(jsk_pcl_ros ${PROJECT_NAME}_gencpp ${PROJECT_NAME}_gencfg)
 
 generate_messages(DEPENDENCIES ${PCL_MSGS} sensor_msgs geometry_msgs)

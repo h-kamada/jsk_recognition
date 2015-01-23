@@ -2,6 +2,17 @@
 Changelog for package imagesift
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.1.32 (2015-01-12)
+-------------------
+
+0.1.31 (2015-01-08)
+-------------------
+* [imagesift] Add warning message if size of mask and image are different
+* [imagesift] support mask image
+* [imagesift] Add warning message if size of mask and image are different
+* [imagesift] support mask image
+* [imagesift] Fix order of subscription and advertisation
+
 0.1.30 (2014-12-24)
 -------------------
 
