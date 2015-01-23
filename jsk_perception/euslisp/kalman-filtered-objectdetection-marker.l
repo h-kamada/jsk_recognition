@@ -384,7 +384,9 @@
       (kalman-filter)
       (publish-marker target-obj marker-life :frame *map-id*)
       (publish-marker target-obj marker-life :frame *map-id* :object-name filtered-objectdetection
-                      :publish-name "/filtered")
+                      :publish-name "/kalmanfilter" :text-name "kalman" :trans #f(-100 0 -100))
+      (publish-marker target-obj marker-life :frame *map-id* :object-name adaptive-filtered-objectdetection
+                      :publish-name "/adaptive_kalmanfilter" :text-name "adaptive" :trans #f(-100 0 -100))
       (publish-attention target-obj)
       ;;       (publish-2Dpointcloud kfp)
       ;; (ros::ros-info "cur-coords:(~A ~A ~A)"
@@ -452,7 +454,8 @@
                     #'pub-cb target-obj marker-life tf-force)
     (ros::rate 10)
     (ros::advertise "/object_detection_marker_array" visualization_msgs::MarkerArray 5)
-    (ros::advertise "/filtered" visualization_msgs::MarkerArray 5)
+    (ros::advertise "/kalmanfilter" visualization_msgs::MarkerArray 5)
+    (ros::advertise "/adaptive_kalmanfilter" visualization_msgs::MarkerArray 5)
     (ros::advertise "/norm/pose" std_msgs::Float32 1)
     (ros::advertise "/norm/rot" std_msgs::Float32 1)
     (ros::advertise "/attention_clipper/input/pose" geometry_msgs::PoseStamped 1)
