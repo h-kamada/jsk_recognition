@@ -17,7 +17,13 @@
 (defvar filtered-objectdetection (instance posedetection_msgs::ObjectDetection :init))
 (send filtered-objectdetection :header :frame_id *map-id*)
 
+(defvar adaptive-filtered-objectdetection (instance posedetection_msgs::ObjectDetection :init))
+(send adaptive-filtered-objectdetection :header :frame_id *map-id*)
+
+
 (defparameter kfs-lst nil)
+(defparameter akfs-lst nil)
+(open "data" :direction :output)
 
 (defvar object-width nil)
 (defvar object-height nil)
@@ -29,11 +35,17 @@
 
 (defmethod kalman-filters
   (:init
-   (&key (pos (float-vector 0 0 0)) (yaw (float-vector 0)))
-   (setq kfp (instance kalman-filter :init :state-dim 3 :measure-dim 3))
-   (setq kfr (instance kalman-filter :init :state-dim 1 :measure-dim 1))
-   (send kfp :x pos)
-   (send kfr :x (float-vector yaw))
+   (&key (ps (float-vector 0 0 0)) (yaw 0))
+   ;; (setq kfp (instance kalman-filter :init :state-dim 3 :measure-dim 3 :q-variance 1))
+   ;; (setq kfr (instance kalman-filter :init :state-dim 1 :measure-dim 1 :q-variance 0.0001))
+   ;; (setq kfp (instance kalman-filter :init :state-dim 3 :measure-dim 3))
+   ;; (setq kfr (instance kalman-filter :init :state-dim 1 :measure-dim 1))
+   (setq kfp (instance kalman-filter :init :state-dim 6 :measure-dim 3 :r-variance 1000 :q-variance 1))
+   (send kfp :A #2f((1 0 0 1 0 0) (0 1 0 0 1 0) (0 0 1 0 0 1) (0 0 0 1 0 0) (0 0 0 0 1 0) (0 0 0 0 0 1)))
+   (send kfp :x (float-vector (elt ps 0) (elt ps 1) (elt ps 2) 0 0 0))
+   (setq kfr (instance kalman-filter :init :state-dim 2 :measure-dim 1 :q-variance 0.1))
+   (send kfr :A #2f((1 1) (0 1)))
+   (send kfr :x (float-vector yaw 0))
    )
   (:pos
    (p)
@@ -44,12 +56,17 @@
    (send kfr :x y)
    )
   (:proc
-   (z1 z2)
+   (z1 z2 &key (adapt nil))
    (let (h1 h2)
-     (setq h1 (send kfp :proc z1))
-     (setq h2 (send kfr :proc (float-vector z2)))
-     (list h1 h2))
-   )
+     (send kfp :proc z1 :adaptive adapt :m 20)
+     (send kfr :proc (float-vector z2) :adaptive adapt :m 1)
+     ))
+  (:P
+   nil
+   (send kfp :P))
+  (:result
+   ()
+   (list (transform (send kfp :H) (send kfp :x)) (transform (send kfr :H) (send kfr :x))))
   )
 
 (defmethod coordinates
@@ -91,6 +108,16 @@
             (send target-obj :move-to trans :local)
             (send target-obj :move-to (ros::tf-pose->coords (send obj :pose)) :local)
             (send tmp-obj :pose (ros::coords->tf-pose target-obj))
+
+            ;; (with-open-file
+            ;;  (data "data" :direction :output :if-exists :append)
+            ;;  (format data "~A ~A ~A~%" (elt (send target-obj :pos) 0) (elt (send target-obj :pos) 1) (elt (send target-obj :pos) 2)))
+            (ros::publish "/raw/x" (instance std_msgs::float32 :init 
+                                             :data (elt (send target-obj :pos) 0)))
+            (ros::publish "/raw/y" (instance std_msgs::float32 :init
+                                             :data (elt (send target-obj :pos) 1)))
+            (ros::publish "/raw/z" (instance std_msgs::float32 :init
+                                             :data (elt (send target-obj :pos) 2)))
             (send tmp-obj :type (send obj :type))
             (setq tmp-obj-lst (append tmp-obj-lst (list tmp-obj)))
             (when (find-method target-obj :update-descendants)
@@ -107,7 +134,7 @@
     ))
 
 (defun publish-marker (target-obj marker-life &key (publish-name "/object_detection_marker_array")
-                                  (frame *base-frame-id*) (object-name map-frame-objectdetection))
+                                  (frame *base-frame-id*) (text-name nil) (trans nil) (object-name map-frame-objectdetection))
   (let ((mf-obj-lst (send object-name :objects))
         (tmp-tgtobj (make-cube 60 60 60))
         (tp (get target-obj :type)))
@@ -119,8 +146,16 @@
                       (instance visualization_msgs::MarkerArray :init
                                 :markers
                                 (list (text->marker-msg
-                                       (send obj :type)
-                                       (send (send (ros::tf-pose->coords (send obj :pose)) :copy-worldcoords) :translate #f(-100 0 100))
+                                       (cond
+                                        ((stringp text-name)
+                                         (eval text-name))
+                                        (t
+                                         (send obj :type)))
+                                       (cond
+                                        ((vectorp trans)
+                                         (send (send (ros::tf-pose->coords (send obj :pose)) :copy-worldcoords) :translate trans))
+                                        (t
+                                         (send (send (ros::tf-pose->coords (send obj :pose)) :copy-worldcoords) :translate #f(-100 0 100))))                                         
                                        (send object-name :header)
                                        :ns (format nil "object_text_~A" (send obj :type)) :color #f(1 0 0)
                                        :scale 100 :lifetime marker-life :id 0)
@@ -149,16 +184,71 @@
          ((equal (get kf :type) (send obj :type))
           (let ((ps (send (ros::tf-pose->coords (send obj :pose)) :pos))
                 (yaw (elt (elt (rpy-angle (send (ros::tf-pose->coords (send obj :pose)) :rot)) 0) 0))
-                z^
+                res
                 )
             (setq flag nil)
-            (setq z^ (send kf :proc ps yaw))
+            (send kf :proc ps yaw)
+            (setq res (send kf :result))
             (dolist (fo (send filtered-objectdetection :objects))
               (cond
                ((equal (get kf :type) (send fo :type))
                 (let ((tmp-coords (make-coords)))
-                  (send tmp-coords :locate (elt z^ 0))
-                  (send tmp-coords :rotate (elt (elt z^ 1) 0) :z)
+                  (send tmp-coords :locate (elt res 0))
+                  (send tmp-coords :rotate (elt (elt res 1) 0) :z)
+                  (ros::publish "/filter/x" (instance std_msgs::float32 :init
+                                             :data (elt (send tmp-coords :pos) 0)))
+                  (ros::publish "/filter/y" (instance std_msgs::float32 :init
+                                             :data (elt (send tmp-coords :pos) 1)))
+                  (ros::publish "/filter/z" (instance std_msgs::float32 :init
+                                             :data (elt (send tmp-coords :pos) 2)))
+                  (ros::publish "/filter/P" (instance std_msgs::float32 :init
+                                                              :data (aref (send kf :P) 0 0)))
+                  (send fo :pose (ros::coords->tf-pose tmp-coords))))
+               (t
+                nil)))
+            ))
+         (t
+          nil)))
+      ;;flagの使い方あってる？最初の１回しかkfs-lstに入らない気がするが
+      (if flag
+          (progn
+            (let* ((ps (send (ros::tf-pose->coords (send obj :pose)) :pos))
+                   (yaw (elt (elt (rpy-angle (send (ros::tf-pose->coords (send obj :pose)) :rot)) 0) 0))
+                   (tmp-kfs (instance kalman-filters :init :ps ps :yaw yaw))
+                   tmp-fo
+                   )
+              (setf (get tmp-kfs :type) (send obj :type))
+              (setq kfs-lst (append kfs-lst (list tmp-kfs)))
+              (send filtered-objectdetection :objects (append (send filtered-objectdetection :objects) (list obj)))
+              ))))
+    (send filtered-objectdetection :header (send map-frame-objectdetection :header))
+
+    (setq flag t)
+    (dolist (obj mf-obj-lst)
+      (dolist (kf akfs-lst)
+        (cond
+         ((equal (get kf :type) (send obj :type))
+          (let ((ps (send (ros::tf-pose->coords (send obj :pose)) :pos))
+                (yaw (elt (elt (rpy-angle (send (ros::tf-pose->coords (send obj :pose)) :rot)) 0) 0))
+                res
+                )
+            (setq flag nil)
+            (send kf :proc ps yaw :adapt t)
+            (setq res (send kf :result))
+            (dolist (fo (send adaptive-filtered-objectdetection :objects))
+              (cond
+               ((equal (get kf :type) (send fo :type))
+                (let ((tmp-coords (make-coords)))
+                  (send tmp-coords :locate (elt res 0))
+                  (send tmp-coords :rotate (elt (elt res 1) 0) :z)
+                  (ros::publish "/adaptivefilter/x" (instance std_msgs::float32 :init
+                                                              :data (elt (send tmp-coords :pos) 0)))
+                  (ros::publish "/adaptivefilter/y" (instance std_msgs::float32 :init
+                                                              :data (elt (send tmp-coords :pos) 1)))
+                  (ros::publish "/adaptivefilter/z" (instance std_msgs::float32 :init
+                                                              :data (elt (send tmp-coords :pos) 2)))
+                  (ros::publish "/adaptivefilter/P" (instance std_msgs::float32 :init
+                                                              :data (aref (send kf :P) 0 0)))
                   (send fo :pose (ros::coords->tf-pose tmp-coords))))
                (t
                 nil)))
@@ -167,16 +257,16 @@
           nil)))
       (if flag
           (progn
-            (let ((tmp-kfs (instance kalman-filters :init
-                                     :pos (send (ros::tf-pose->coords (send obj :pose)) :pos)
-                                     :yaw (elt (elt (rpy-angle (send (ros::tf-pose->coords (send obj :pose)) :rot)) 0) 0)))
-                  tmp-fo
-                  )
+            (let* ((ps (send (ros::tf-pose->coords (send obj :pose)) :pos))
+                   (yaw (elt (elt (rpy-angle (send (ros::tf-pose->coords (send obj :pose)) :rot)) 0) 0))
+                   (tmp-kfs (instance kalman-filters :init :ps ps :yaw yaw))
+                   tmp-fo
+                   )
               (setf (get tmp-kfs :type) (send obj :type))
-              (setq kfs-lst (append kfs-lst (list tmp-kfs)))
-              (send filtered-objectdetection :objects (append (send filtered-objectdetection :objects) (list obj)))
+              (setq akfs-lst (append akfs-lst (list tmp-kfs)))
+              (send adaptive-filtered-objectdetection :objects (append (send adaptive-filtered-objectdetection :objects) (list obj)))
               ))))
-    (send filtered-objectdetection :header (send map-frame-objectdetection :header))
+    (send adaptive-filtered-objectdetection :header (send map-frame-objectdetection :header))
     ))
 
 ;; (defun calc-distribution (x sigma xa)
@@ -294,8 +384,9 @@
       (kalman-filter)
       (publish-marker target-obj marker-life :frame *map-id*)
       (publish-marker target-obj marker-life :frame *map-id* :object-name filtered-objectdetection
-                      :publish-name "/filtered")
+                      :publish-name "/filtered" :text-name "filter" :trans #f(-100 0 -100))
       (publish-attention target-obj)
+      (print-ros-msg filtered-objectdetection)
       ;;       (publish-2Dpointcloud kfp)
       ;; (ros::ros-info "cur-coords:(~A ~A ~A)"
       ;;                (send (send (send cur-coords :pose) :position) :x)
@@ -366,6 +457,17 @@
     (ros::advertise "/norm/pose" std_msgs::Float32 1)
     (ros::advertise "/norm/rot" std_msgs::Float32 1)
     (ros::advertise "/attention_clipper/input/pose" geometry_msgs::PoseStamped 1)
+    (ros::advertise "/raw/x" std_msgs::Float32 1)
+    (ros::advertise "/raw/y" std_msgs::Float32 1)
+    (ros::advertise "/raw/z" std_msgs::Float32 1)
+    (ros::advertise "/filter/x" std_msgs::Float32 1)
+    (ros::advertise "/filter/y" std_msgs::Float32 1)
+    (ros::advertise "/filter/z" std_msgs::Float32 1)
+    (ros::advertise "/filter/P" std_msgs::Float32 1)
+    (ros::advertise "/adaptivefilter/x" std_msgs::Float32 1)
+    (ros::advertise "/adaptivefilter/y" std_msgs::Float32 1)
+    (ros::advertise "/adaptivefilter/z" std_msgs::Float32 1)
+    (ros::advertise "/adaptivefilter/P" std_msgs::Float32 1)
     (ros::advertise-service "targetobj" posedetection_msgs::TargetObj #'target-obj-cb)
     (setq object-width (ros::get-param "~object_width" 0.2))
     (setq object-height (ros::get-param "~object_height" 0.2))
