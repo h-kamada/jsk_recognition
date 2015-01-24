@@ -23,6 +23,7 @@
 
 (defparameter kfs-lst nil)
 (defparameter akfs-lst nil)
+(defvar xvar)
 (open "data" :direction :output)
 
 (defvar object-width nil)
@@ -247,6 +248,7 @@
                                                               :data (elt (send tmp-coords :pos) 1)))
                   (ros::publish "/adaptivefilter/z" (instance std_msgs::float32 :init
                                                               :data (elt (send tmp-coords :pos) 2)))
+                  (setq xvar (aref (send kf :P) 0 0))
                   (ros::publish "/adaptivefilter/P" (instance std_msgs::float32 :init
                                                               :data (aref (send kf :P) 0 0)))
                   (send fo :pose (ros::coords->tf-pose tmp-coords))))
@@ -406,8 +408,10 @@
         (tmp-coords (instance posedetection_msgs::Object6DPose :init))
         ts)
     (send tmp-coords :pose :orientation :w 1)
-    (send tmp-coords :reliability 0.5)
-
+    ;;    (send tmp-coords :reliability 0.5)
+    (if xvar (send tmp-coords :reliability (sqrt xvar))
+      (send tmp-coords :reliability 50)
+      )
     (unless (boundp '*tfl*)
       (setq *tfl* (instance ros::transform-listener :init)))
     (unless (send *tfl* :wait-for-transform *base-frame-id* *map-id* (ros::time 0) 1)
@@ -418,7 +422,8 @@
     (cond
      (ts
       (send cds :move-to ts :local)
-      (let ((mf-obj-lst (send map-frame-objectdetection :objects))
+      ;;      (let ((mf-obj-lst (send map-frame-objectdetection :objects))
+      (let ((mf-obj-lst (send adaptive-filtered-objectdetection :objects))
             (tp (send req :type)))
         (dolist (obj mf-obj-lst)
           (when (or (not (stringp tp))

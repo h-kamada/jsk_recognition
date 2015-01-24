@@ -1,5 +1,5 @@
-(defun check-detection (&key (timeout 10) ((:type atype) nil) (tf-force nil)
-                             (single nil) (speak t)
+(defun check-detection-service (&key (timeout 10) ((:type atype) nil) (tf-force nil)
+                                     (speak t)
                              (speak-name)
                              (detection-topic *detection-topic*)
                              ((:target-object target-obj) (make-cube 60 60 60)))
@@ -31,8 +31,7 @@
         (ros::ros-info "check detected ~A percent:~A"
                        (send target-obj :name)
                        (send (send res :object_pose) :reliability))
-        (when (or single
-                  (> (send (send res :object_pose) :reliability) 0))
+        (when t
           (cond
            ((or (not (stringp atype))
                 (substringp atype (send target-obj :name))) ;; found target
@@ -46,7 +45,7 @@
                     (speak-jp (format nil "I have found ~a." (send target-obj :speak-name))))
                    (t (speak-jp (format nil "~aが見つかりました。" (send target-obj :speak-name)))))
                 (speak-jp (format nil "~a が みつかりました" (send target-obj :speak-name)))))
-            (return-from check-detection target-obj))
+            (return-from check-detection-service (list target-obj (* (send (send res :object_pose) :reliability) 3)));; * 3  for 3 sigma
            (t
             (ros::ros-info (format nil "no - obj-type(~a)" (send target-obj :name)))
             ))
