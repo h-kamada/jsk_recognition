@@ -173,6 +173,40 @@
                                        :lifetime marker-life :id 2)
                                       )))))))
 
+(defun pub-3sigma-region ()
+  (let ((obj (car (send adaptive-filtered-objectdetection :objects))))
+    (ros::ros-info "obj:~A" (send adaptive-filtered-objectdetection :objects))
+    (ros::ros-info "xvar:~A" xvar)
+    (cond
+     (xvar
+      (ros::ros-info "pub 3sigma")
+      (ros::ros-info "pose:~A" (send obj :pose))
+      (ros::publish "/3sigma_region"
+                    (instance visualization_msgs::MarkerArray :init
+                              :markers
+                              (list
+                               (instance visualization_msgs::Marker :init
+                                         :header (send adaptive-filtered-objectdetection :header)
+                                         :ns (format nil "3sigma")
+                                         :id 0
+                                         :type 2
+                                         :pose (send obj :pose)
+                                         :scale (ros::pos->tf-translation
+                                                  (float-vector (* 3 (sqrt xvar)) (* 3 (sqrt xvar)) (* 3 (sqrt xvar))))
+                                         :color (instance std_msgs::ColorRGBA :init
+                                                          :r 1
+                                                          :g 0
+                                                          :b 0
+                                                          :a 1
+                                                          )
+                                         :lifetime (ros::time 30)
+                                         :frame_locked t
+                                         ))))
+      )
+     (t
+      nil)
+     )))
+
 
 (defun kalman-filter
   nil
@@ -389,6 +423,7 @@
                       :publish-name "/kalmanfilter" :text-name "kalman" :trans #f(-100 0 -100))
       (publish-marker target-obj marker-life :frame *map-id* :object-name adaptive-filtered-objectdetection
                       :publish-name "/adaptive_kalmanfilter" :text-name "adaptive" :trans #f(-100 0 -100))
+      (pub-3sigma-region)
       (publish-attention target-obj)
       (print-ros-msg filtered-objectdetection)
       ;;       (publish-2Dpointcloud kfp)
@@ -461,6 +496,7 @@
     (ros::rate 10)
     (ros::advertise "/object_detection_marker_array" visualization_msgs::MarkerArray 5)
     (ros::advertise "/kalmanfilter" visualization_msgs::MarkerArray 5)
+    (ros::advertise "/3sigma_region" visualization_msgs::MarkerArray 5)
     (ros::advertise "/adaptive_kalmanfilter" visualization_msgs::MarkerArray 5)
     (ros::advertise "/norm/pose" std_msgs::Float32 1)
     (ros::advertise "/norm/rot" std_msgs::Float32 1)
