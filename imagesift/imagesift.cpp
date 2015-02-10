@@ -37,6 +37,7 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/synchronizer.h>
+#include <jsk_perception/image_utils.h>
 
 using namespace std;
 using namespace ros;
@@ -70,17 +71,17 @@ public:
         pnh.param("use_mask", _useMask, false);
         
         _pubSift = _node.advertise<posedetection_msgs::ImageFeature0D>("ImageFeature0D",1);
-        _srvDetect = _node.advertiseService("Feature0DDetect",&SiftNode::detect_cb,this);
+        _srvDetect = _node.advertiseService("Feature0DDetect",&SiftNode::detectCb,this);
         if (!_useMask) {
-            _subImage = _it.subscribe("image",1,&SiftNode::image_cb,this);
+            _subImage = _it.subscribe("image",1,&SiftNode::imageCb,this);
         }
         else {
             _subImageWithMask.reset(new image_transport::SubscriberFilter(_it, "image", 1));
             _subMask.reset(new image_transport::SubscriberFilter(_it, "mask", 1));
             _sync.reset(new message_filters::Synchronizer<SyncPolicy>(SyncPolicy(100), *_subImageWithMask, *_subMask));
-            _sync->registerCallback(boost::bind(&SiftNode::image_cb, this, _1, _2));
+            _sync->registerCallback(boost::bind(&SiftNode::imageCb, this, _1, _2));
         }
-        _subInfo = _node.subscribe("camera_info",1,&SiftNode::info_cb,this);
+        _subInfo = _node.subscribe("camera_info",1,&SiftNode::infoCb,this);
         lasttime = ros::Time::now();
         _bInfoInitialized = false;
     }
@@ -191,30 +192,8 @@ public:
         return true;
     }
 
-    void image_cb(const sensor_msgs::ImageConstPtr& msg_ptr,
-                  const sensor_msgs::ImageConstPtr& mask_ptr)
-    {
-        cv::Mat input = cv_bridge::toCvCopy(
-            msg_ptr, sensor_msgs::image_encodings::BGR8)->image;
-        cv::Mat mask = cv_bridge::toCvCopy(
-            mask_ptr, sensor_msgs::image_encodings::MONO8)->image;
-        if (input.size() == mask.size()) {
-            cv::Mat masked_image;
-            input.copyTo(masked_image, mask);
-            sensor_msgs::Image::ConstPtr masked_image_msg = cv_bridge::CvImage(
-                msg_ptr->header,
-                sensor_msgs::image_encodings::BGR8,
-                masked_image).toImageMsg();
-            image_cb(masked_image_msg);
-        }
-        else {
-            ROS_WARN("size of mask and input image are different");
-            ROS_WARN("input: %dx%d", input.cols, input.rows);
-            ROS_WARN("mask: %dx%d", mask.cols, mask.rows);
-        }
-    }
-    
-    void image_cb(const sensor_msgs::ImageConstPtr& msg_ptr)
+    void imageCb(const sensor_msgs::ImageConstPtr& msg_ptr,
+                 const sensor_msgs::ImageConstPtr& mask_ptr)
     {
         if(_pubSift.getNumSubscribers()==0){ 
             ROS_DEBUG("number of subscribers is 0, ignoring image");
