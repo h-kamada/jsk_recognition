@@ -46,7 +46,9 @@
                     (speak-jp (format nil "I have found ~a." (send target-obj :speak-name))))
                    (t (speak-jp (format nil "~aが見つかりました。" (send target-obj :speak-name)))))
                 (speak-jp (format nil "~a が みつかりました" (send target-obj :speak-name)))))
-            (return-from check-detection target-obj))
+            (return-from check-detection (list target-obj (* (send (send res :object_pose) :reliability) 3)));; * 3  for 3 sigma
+            ;; (return-from check-detection target-obj))
+            )
            (t
             (ros::ros-info (format nil "no - obj-type(~a)" (send target-obj :name)))
             ))

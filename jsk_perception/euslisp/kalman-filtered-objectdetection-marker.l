@@ -6,10 +6,12 @@
 (ros::roseus "marker-publish")
 (ros::roseus-add-msgs "posedetection_msgs")
 
-(defvar *detection-topic* "/openni/rgb/ObjectDetection")
+(defvar *detection-topic* "/kinect_head/rgb/ObjectDetection")
 (defvar *base-frame-id* "/base_footprint")
 (defvar *map-id* "/map")
 (defvar *solve-tf* t)
+(defvar xvar)
+
 
 (defvar map-frame-objectdetection (instance posedetection_msgs::ObjectDetection :init))
 (send map-frame-objectdetection :header :frame_id *map-id*)
@@ -274,6 +276,7 @@
                 (yaw (elt (elt (rpy-angle (send (ros::tf-pose->coords (send obj :pose)) :rot)) 0) 0))
                 z^
                 )
+            (setq xvar (aref (send kf :P) 0 0))
             (setq flag nil)
             (setq z^ (send kf :proc ps yaw))
             (dolist (fo (send filtered-objectdetection :objects))
@@ -453,6 +456,7 @@
     (detection-interface-objectdetection force target-obj msg)
     (cond
      ((send target-obj :stamp);;for tf error
+      (ros::ros-info "pub callback")
       (kalman-filter)
       (publish-marker target-obj marker-life :frame *map-id*)
       (publish-marker target-obj marker-life :frame *map-id* :object-name filtered-objectdetection
@@ -505,6 +509,12 @@
       nil))
     (ros::ros-info "cds:~A" (send cds :worldcoords))
     (send m :object_pose tmp-coords)
+    ;; add 2015/09/21
+    (if xvar
+        (send (send m :object_pose) :reliability (sqrt xvar))
+        ;; (send (send m :object_pose) :reliability xvar)
+      (send (send m :object_pose) :reliability 50))
+
     (ros::ros-info "reliability:~A type:~A" (send (send m :object_pose) :reliability) (send (send m :object_pose) :type))
     m))
 
