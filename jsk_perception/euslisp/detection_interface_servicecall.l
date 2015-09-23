@@ -1,4 +1,4 @@
-(defun check-detection (&key (timeout 10) ((:type atype) nil) (tf-force nil)
+(defun check-detection-service (&key (timeout 10) ((:type atype) nil) (tf-force nil)
                              (single nil) (speak t)
                              (speak-name)
                              (detection-topic *detection-topic*)
@@ -46,7 +46,7 @@
                     (speak-jp (format nil "I have found ~a." (send target-obj :speak-name))))
                    (t (speak-jp (format nil "~aが見つかりました。" (send target-obj :speak-name)))))
                 (speak-jp (format nil "~a が みつかりました" (send target-obj :speak-name)))))
-            (return-from check-detection (list target-obj (* (send (send res :object_pose) :reliability) 3)));; * 3  for 3 sigma
+            (return-from check-detection-service (list target-obj (* (send (send res :object_pose) :reliability) 3)));; * 3  for 3 sigma
             ;; (return-from check-detection target-obj))
             )
            (t
@@ -68,7 +68,7 @@
               (speak-jp (format nil "~a は みつかりませんでした" (send target-obj :speak-name)))))
           (send target-obj :reset-coords)
           (send target-obj :transform tgt-cds)
-          (return-from check-detection nil))
+          (return-from check-detection-service nil))
         ) ;; while (ros::ok)
       target-obj
       )))
