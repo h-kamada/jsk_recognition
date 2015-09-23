@@ -56,8 +56,8 @@
   (:proc
    (z1 z2)
    (let (h1 h2)
-     (setq h1 (send kfp :proc z1 :adaptive t :m 30))
-     (setq h2 (send kfr :proc (float-vector z2) :adaptive t :m 30))
+     (setq h1 (send kfp :proc z1 :adaptive t :m 20))
+     (setq h2 (send kfr :proc (float-vector z2) :adaptive t :m 20))
      ;; (setq h1 (send kfp :proc z1))
      ;; (setq h2 (send kfr :proc (float-vector z2)))
      (list h1 h2))
@@ -277,6 +277,7 @@
                 z^
                 )
             (setq xvar (aref (send kf :P) 0 0))
+            (ros::ros-info "kf P:~A" (send kf :P))
             (setq flag nil)
             (setq z^ (send kf :proc ps yaw))
             (dolist (fo (send filtered-objectdetection :objects))
@@ -510,9 +511,9 @@
     (ros::ros-info "cds:~A" (send cds :worldcoords))
     (send m :object_pose tmp-coords)
     ;; add 2015/09/21
-    (if xvar
+    (if (and xvar (< xvar 50))
         (send (send m :object_pose) :reliability (sqrt xvar))
-        ;; (send (send m :object_pose) :reliability xvar)
+      ;; (send (send m :object_pose) :reliability xvar)
       (send (send m :object_pose) :reliability 50))
 
     (ros::ros-info "reliability:~A type:~A" (send (send m :object_pose) :reliability) (send (send m :object_pose) :type))
