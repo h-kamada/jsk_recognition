@@ -6,7 +6,7 @@
 (ros::roseus "marker-publish")
 (ros::roseus-add-msgs "posedetection_msgs")
 
-(defvar *detection-topic* "/openni/rgb/ObjectDetection")
+(defvar *detection-topic* "/kinect_head/rgb/ObjectDetection")
 (defvar *base-frame-id* "/base_footprint")
 (defvar *map-id* "/map")
 (defvar *solve-tf* t)
@@ -76,14 +76,14 @@
         (frame (send msg :header :frame_id))
         (tp (get target-obj :type))
         tmp-obj-lst stamp trans)
-    (print (list "tp" tp))
-    (print (list "frame" frame))
-    (print (list "target-obj" target-obj))
+    ;; (print (list "tp" tp))
+    ;; (print (list "frame" frame))
+    ;; (print (list "target-obj" target-obj))
     (setq *tpp* tp)
     (setq *framee* frame)
     (setq *to* target-obj)
-    (ros::ros-info "object detection callback target ~A(~A), frame ~A, object ~A"
-                   tp (stringp tp) frame target-obj)
+    (ros::ros-debug "object detection callback target ~A(~A), frame ~A, object ~A"
+                    tp (stringp tp) frame target-obj)
     (dolist (obj obj-lst)
       (when (or (not (stringp tp))
                 (substringp tp (send obj :type))) ;; found target
@@ -95,7 +95,7 @@
           (unless (send *tfl* :wait-for-transform *map-id* frame stamp 1)
             (ros::ros-error "could not solve ~A to ~A" *map-id* frame))
           (setq trans (send *tfl* :lookup-transform *map-id* frame stamp))
-          (ros::ros-info "trans ~A" trans))
+          (ros::ros-debug "trans ~A" trans))
          (t (setq trans (make-coords))))
 
         (when trans
@@ -451,25 +451,19 @@
 (defun pub-cb (target-obj marker-life force msg)
   (let ((filter-obj))
     (detection-interface-objectdetection force target-obj msg)
-    (cond
-     ((send target-obj :stamp);;for tf error
-      (kalman-filter)
-      (publish-marker target-obj marker-life :frame *map-id*)
-      (publish-marker target-obj marker-life :frame *map-id* :object-name filtered-objectdetection
-                      :publish-name "/filtered")
-      (pub-PoseStamped-and-PoseWithCovarianceStamped target-obj)
-      (simply-calc-covariance-and-pub-PoseStamped-and-PoseWithCovarianceStamped target-obj)
-      ;;       (publish-2Dpointcloud kfp)
-      ;; (ros::ros-info "cur-coords:(~A ~A ~A)"
-      ;;                (send (send (send cur-coords :pose) :position) :x)
-      ;;                (send (send (send cur-coords :pose) :position) :y)
-      ;;                (send (send (send cur-coords :pose) :position) :z))
-      )
-     (t
-      nil)
-     )
-    )
-  )
+    (when *calc-kalman*
+      (cond
+       ((send target-obj :stamp);;for tf error
+        (kalman-filter)
+        (publish-marker target-obj marker-life :frame *map-id*)
+        (publish-marker target-obj marker-life :frame *map-id* :object-name filtered-objectdetection
+                        :publish-name "/filtered")
+        (pub-PoseStamped-and-PoseWithCovarianceStamped target-obj)
+        (simply-calc-covariance-and-pub-PoseStamped-and-PoseWithCovarianceStamped target-obj)
+        )
+       (t
+        nil)
+       ))))
 
 (defun target-obj-cb (req)
   (let ((m (send req :response))
@@ -487,7 +481,7 @@
     (ros::ros-info "ts ~A" ts)
     (send cds :reset-coords)
     (cond
-     (ts
+     ((and ts (send map-frame-objectdetection :objects))
       (send cds :move-to ts :local)
       (let ((mf-obj-lst (send map-frame-objectdetection :objects))
             (tp (send req :type)))
@@ -500,14 +494,23 @@
             (ros::ros-info "in cb tmp-coords:(~A ~A ~A)"
                            (send (send (send tmp-coords :pose) :position) :x)
                            (send (send (send tmp-coords :pose) :position) :y)
-                           (send (send (send tmp-coords :pose) :position) :z))))))
+                           (send (send (send tmp-coords :pose) :position) :z))))
+      ))
      (t
+      (send tmp-coords :reliability 0)
       nil))
     (ros::ros-info "cds:~A" (send cds :worldcoords))
     (send m :object_pose tmp-coords)
     (ros::ros-info "reliability:~A type:~A" (send (send m :object_pose) :reliability) (send (send m :object_pose) :type))
     m))
 
+(defun detect-flag-cb (msg)
+  (ros::ros-info "data:~A" (send msg :data))
+  (setq *detect-flag* (send msg :data))
+  (when *detect-flag*
+    ;; reflesh
+    (setq map-frame-objectdetection (instance posedetection_msgs::ObjectDetection :init))
+    ))
 
 (defun only-perception (&key ((:type atype) nil) (tf-force nil)
                              (publish-objectdetection-marker t)
@@ -520,14 +523,12 @@
         )
     (send target-obj :reset-coords)
     (setf (get target-obj :type) atype)
-    (ros::subscribe detection-topic
-                    posedetection_msgs::ObjectDetection
-                    #'pub-cb target-obj marker-life tf-force)
+    ;; (ros::subscribe detection-topic
+    ;;                 posedetection_msgs::ObjectDetection
+    ;;                 #'pub-cb target-obj marker-life tf-force)
     (ros::rate 10)
     (ros::advertise "/object_detection_marker_array" visualization_msgs::MarkerArray 5)
     (ros::advertise "/filtered" visualization_msgs::MarkerArray 5)
-    (ros::advertise "/norm/pose" std_msgs::Float32 1)
-    (ros::advertise "/norm/rot" std_msgs::Float32 1)
     (ros::advertise "/attention_clipper/input/pose" geometry_msgs::PoseStamped 1)
     (ros::advertise "/posewithcovstamped" geometry_msgs::PoseWithCovarianceStamped 1)
     (ros::advertise "/simplecov" geometry_msgs::PoseWithCovarianceStamped 1)
@@ -537,11 +538,23 @@
     (setq relative-pose-str (ros::get-param "~relative_pose" "0 0 0 0 0 0 1"))
     (ros::subscribe "/openni_c2/rgb/image_rect_color"
                     sensor_msgs::Image #'attention-init)
-    (ros::spin)
-    )
-  )
+    (ros::subscribe "/detectflag" std_msgs::Bool #'detect-flag-cb)
+    (while t
+      (ros::spin-once)
+      (cond
+       (*detect-flag*
+        (ros::subscribe detection-topic
+                        posedetection_msgs::ObjectDetection
+                        #'pub-cb target-obj marker-life tf-force)
+        )
+       (t
+        (ros::unsubscribe detection-topic)
+        ))
+      (ros::sleep)
+      )))
 
-
+(setq *calc-kalman* nil)
+(setq *detect-flag* nil)
 (only-perception)
 
 
