@@ -539,7 +539,7 @@
     ;; (setq relative-pose-str (ros::get-param "~relative_pose" "0 0 0 0 0 0 1"))
     ;; (ros::subscribe "/openni_c2/rgb/image_rect_color"
     ;;                 sensor_msgs::Image #'attention-init)
-    ;; (ros::subscribe "/detectflag" std_msgs::Bool #'detect-flag-cb)
+    (ros::subscribe "/detectcanflag" std_msgs::Bool #'detect-flag-cb)
     (while t
       (ros::spin-once)
       (cond

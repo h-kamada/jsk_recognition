@@ -504,8 +504,22 @@
     (ros::ros-info "reliability:~A type:~A" (send (send m :object_pose) :reliability) (send (send m :object_pose) :type))
     m))
 
+;; (defun detect-flag-cb (msg)
+;;   (ros::ros-info "detect-fridge data:~A" (send msg :data))
+;;   (cond
+;;    ((send msg :data)
+;;     ;; reflesh
+;;     (setq map-frame-objectdetection (instance posedetection_msgs::ObjectDetection :init))
+;;     (ros::subscribe detection-topic
+;;                     posedetection_msgs::ObjectDetection
+;;                     #'pub-cb target-obj marker-life tf-force)
+;;     )
+;;    (t ;; finish detection
+;;     (ros::unsubscribe detection-topic)
+;;     )))
+
 (defun detect-flag-cb (msg)
-  (ros::ros-info "data:~A" (send msg :data))
+  (ros::ros-info "detect-fridge data:~A" (send msg :data))
   (setq *detect-flag* (send msg :data))
   (when *detect-flag*
     ;; reflesh
@@ -538,11 +552,12 @@
     (setq relative-pose-str (ros::get-param "~relative_pose" "0 0 0 0 0 0 1"))
     (ros::subscribe "/openni_c2/rgb/image_rect_color"
                     sensor_msgs::Image #'attention-init)
-    (ros::subscribe "/detectflag" std_msgs::Bool #'detect-flag-cb)
+    (ros::subscribe "/detectfridgeflag" std_msgs::Bool #'detect-flag-cb)
     (while t
       (ros::spin-once)
       (cond
        (*detect-flag*
+        ;; detection-topic is in this scope. So need to set subscribe or not here.
         (ros::subscribe detection-topic
                         posedetection_msgs::ObjectDetection
                         #'pub-cb target-obj marker-life tf-force)
@@ -552,6 +567,7 @@
         ))
       (ros::sleep)
       )))
+    ;; (ros::spin)))
 
 (setq *calc-kalman* nil)
 (setq *detect-flag* nil)
