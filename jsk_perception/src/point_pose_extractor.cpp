@@ -1036,7 +1036,7 @@ int main (int argc, char **argv){
   ros::Rate r(10); // 10 hz
   while(ros::ok()) {
         ros::spinOnce();
-        matcher.check_subscribers();
+        // matcher.check_subscribers(); temporary
         r.sleep();
   }
 
