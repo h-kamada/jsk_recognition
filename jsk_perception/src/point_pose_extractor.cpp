@@ -59,6 +59,7 @@
 #include <jsk_perception/point_pose_extractorConfig.h>
 #include <jsk_perception/SetTemplate.h>
 #include <jsk_topic_tools/log_utils.h>
+#include <std_msgs/Bool.h>
 namespace enc = sensor_msgs::image_encodings;
 
 bool _first_sample_change;
@@ -545,6 +546,7 @@ class PointPoseExtractor
   ros::NodeHandle _n;
   image_transport::ImageTransport it;
   ros::Subscriber _sub;
+  ros::Subscriber _flagsub;
   ros::ServiceServer _server;
   ros::ServiceClient _client;
   ros::Publisher _pub, _pub_agg, _pub_pose;
@@ -565,6 +567,8 @@ public:
   PointPoseExtractor() : it(ros::NodeHandle("~")) {
     // _sub = _n.subscribe("ImageFeature0D", 1,
     //                     &PointPoseExtractor::imagefeature_cb, this);
+    _flagsub = _n.subscribe("/detectfridgeflag", 1,
+                            &PointPoseExtractor::flagcallback, this);
     _client = _n.serviceClient<posedetection_msgs::Feature0DDetect>("Feature0DDetect");
     _pub = _n.advertise<posedetection_msgs::ObjectDetection>("ObjectDetection", 10);
     _pub_agg = _n.advertise<posedetection_msgs::ObjectDetection>("ObjectDetection_agg", 10);
@@ -958,6 +962,7 @@ public:
    */
   void check_subscribers()
   {
+    JSK_ROS_INFO("WATCH ME : %d", _pub.getNumSubscribers());
         if(_pub.getNumSubscribers() == 0 && _initialized) {
           if(_sub)
                 _sub.shutdown();
@@ -970,6 +975,20 @@ public:
                 _sub = _n.subscribe("ImageFeature0D", 1,
                                     &PointPoseExtractor::imagefeature_cb, this);
         }
+  }
+
+  void flagcallback (std_msgs::Bool msg)
+  {
+    JSK_ROS_INFO ("flagcallback called msgdata: %d true:%d" , msg.data , true);
+    if (msg.data == 255){
+      JSK_ROS_INFO ("start subscribe");
+      _sub = _n.subscribe("ImageFeature0D", 1,
+                          &PointPoseExtractor::imagefeature_cb, this);
+    }
+    else {
+      JSK_ROS_INFO ("stop subscribe");
+      _sub.shutdown();
+    }
   }
 
   /* callback for dynamic reconfigure */

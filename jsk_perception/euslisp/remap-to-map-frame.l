@@ -555,7 +555,7 @@
       )))
 
 (setq *calc-kalman* nil)
-(setq *detect-flag* t)
+(setq *detect-flag* nil)
 (only-perception)
 
 
