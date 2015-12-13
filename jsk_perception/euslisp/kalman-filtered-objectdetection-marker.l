@@ -30,14 +30,19 @@
 (defmethod kalman-filters
   (:init
    (&key (pos (float-vector 0 0 0)) (yaw (float-vector 0)))
-   ;; (setq kfp (instance kalman-filter :init :state-dim 3 :measure-dim 3))
+   (setq kfp (instance kalman-filter :init :state-dim 3 :measure-dim 3 :q-variance 1))
+   (send kfp :x (float-vector (elt pos 0) (elt pos 1) (elt pos 2)))
    ;; (setq kfr (instance kalman-filter :init :state-dim 1 :measure-dim 1))
    ;; (send kfp :x pos)
    ;; (send kfr :x (float-vector yaw))
-   (setq kfp (instance kalman-filter :init :state-dim 6 :measure-dim 3 :r-variance 1000 :q-variance 1))
+
+   ;; original
+   ;; (setq kfp (instance kalman-filter :init :state-dim 6 :measure-dim 3 :r-variance 1000 :q-variance 1))
+   ;; (send kfp :x (float-vector (elt pos 0) (elt pos 1) (elt pos 2) 0 0 0))
+
+
    ;;   (send kfp :A (make-array (list 3 3)))
    ;; (send kfp :A #2f((1 0 0 1 0 0) (0 1 0 0 1 0) (0 0 1 0 0 1) (0 0 0 1 0 0) (0 0 0 0 1 0) (0 0 0 0 0 1)))
-   (send kfp :x (float-vector (elt pos 0) (elt pos 1) (elt pos 2) 0 0 0))
    (setq kfr (instance kalman-filter :init :state-dim 2 :measure-dim 1 :q-variance 0.1))
    ;;   (send kfr :A (make-array (list 2 2)))
    ;; (send kfr :A #2f((1 1) (0 1)))
@@ -54,7 +59,7 @@
   (:proc
    (z1 z2)
    (let (h1 h2)
-     (setq h1 (send kfp :proc z1 :adaptive t :m 30))
+     (setq h1 (send kfp :proc z1 :adaptive t :m 3))
      (setq h2 (send kfr :proc (float-vector z2) :adaptive t :m 30))
      ;; (setq h1 (send kfp :proc z1))
      ;; (setq h2 (send kfr :proc (float-vector z2)))
@@ -127,10 +132,13 @@
     ))
 
 (defun publish-marker (target-obj marker-life &key (publish-name "/object_detection_marker_array")
-                                  (frame *base-frame-id*) (object-name map-frame-objectdetection))
+                                  (frame *base-frame-id*) (object-name map-frame-objectdetection)
+                                  (text-name nil) (text-color nil) (obj-color nil))
   (let ((mf-obj-lst (send object-name :objects))
         (tmp-tgtobj (make-cube 60 60 60))
         (tp (get target-obj :type)))
+    (when obj-color
+      (send tmp-tgtobj :set-color obj-color))
     (dolist (obj mf-obj-lst)
       (when (or (not (stringp tp))
                 (substringp tp (send obj :type))) ;; found target
@@ -139,10 +147,20 @@
                       (instance visualization_msgs::MarkerArray :init
                                 :markers
                                 (list (text->marker-msg
-                                       (send obj :type)
+                                       (cond
+                                        (text-name
+                                         text-name)
+                                        (t
+                                         (send obj :type)
+                                         ))
                                        (send (send (ros::tf-pose->coords (send obj :pose)) :copy-worldcoords) :translate #f(-100 0 100))
                                        (send object-name :header)
-                                       :ns (format nil "object_text_~A" (send obj :type)) :color #f(1 0 0)
+                                       :ns (format nil "object_text_~A" (send obj :type))
+                                       :color (cond
+                                               (text-color
+                                                text-color)
+                                               (t
+                                                #f(1 0 0)))
                                        :scale 100 :lifetime marker-life :id 0)
                                       (coords->marker-msg
                                        (send (ros::tf-pose->coords (send obj :pose)) :copy-worldcoords)
@@ -156,6 +174,73 @@
                                        :ns (format nil "object_body_~A" (send obj :type))
                                        :lifetime marker-life :id 2)
                                       )))))))
+
+(setq *catchalllist* nil)
+;; (setq *catchthre* 100)
+;; (setq *catchthre* 60)
+(setq *catchthre* 30)
+
+(setq *catchave* 0)
+(setq *dummy-coords* nil)
+(defun catch-outlier (target-obj)
+  (let ((mf-obj-lst (send map-frame-objectdetection :objects))
+        (tmp-tgtobj (make-cube 60 60 60))
+        (marker-life 700)
+        (tp (get target-obj :type)))
+    (send tmp-tgtobj :set-color (float-vector 0.4 1 0.4))
+    (dolist (obj mf-obj-lst)
+      (when (or (not (stringp tp))
+                (substringp tp (send obj :type))) ;; found target
+        (send tmp-tgtobj :move-to (ros::tf-pose->coords (send obj :pose)) :local)
+        (cond
+         ((< (length *catchalllist*) 20) ;;stock only
+          (setq *catchalllist* (append *catchalllist* (list (aref (send tmp-tgtobj :pos) 0))))
+          )
+         (t
+          (setq *catchave* 0)
+          (dolist (x *catchalllist* nil)
+            (setq *catchave* (+ *catchave* x))
+            )
+          (setq *catchave* (/ *catchave* 20))
+          (ros::ros-info "ave:~A x: ~A diff:~A" *catchave* (aref (send tmp-tgtobj :pos) 0)
+                         (abs (- *catchave* (aref (send tmp-tgtobj :pos) 0)))
+                         )
+          (cond
+           ((< *catchthre* (abs (- *catchave* (aref (send tmp-tgtobj :pos) 0)))) ;; outsider
+            (ros::ros-info "publish outlier")
+            (ros::publish "/outlier"
+                          (instance visualization_msgs::MarkerArray :init
+                                    :markers
+                                    (list (text->marker-msg
+                                           "outlier"
+                                           ;; (send obj :type)
+                                           (send (send (ros::tf-pose->coords (send obj :pose)) :copy-worldcoords) :translate #f(-100 0 100))
+                                           (send map-frame-objectdetection :header)
+                                           :ns (format nil "object_text_~A" (send obj :type)) :color #f(0 1 0)
+                                           :scale 100 :lifetime marker-life :id 0)
+                                          (coords->marker-msg
+                                           (send (ros::tf-pose->coords (send obj :pose)) :copy-worldcoords)
+                                           (send map-frame-objectdetection :header)
+                                           :ns (format nil "object_coords_~A" (send obj :type))
+                                           ;; :size 200 :width 20
+                                           :lifetime marker-life :id 1)
+                                          (object->marker-msg
+                                           tmp-tgtobj
+                                           (send map-frame-objectdetection :header)
+                                           :ns (format nil "object_body_~A" (send obj :type))
+                                           :lifetime marker-life :id 2))))
+            (setq *dummy-coords* (send tmp-tgtobj :copy-worldcoords))
+            (setq *catchalllist* (append (cdr *catchalllist*) (list (aref (send tmp-tgtobj :pos) 0))))
+            (return-from catch-outlier t)
+            )
+           (t ;; inside
+            ;; like queue
+            (setq *catchalllist* (append (cdr *catchalllist*) (list (aref (send tmp-tgtobj :pos) 0))))
+            (return-from catch-outlier nil)
+            ))))))))
+
+
+
 
 (defparameter *poselist* nil)
 (defun add-to-xlist (x)
@@ -454,16 +539,59 @@
     (when *calc-kalman*
       (cond
        ((send target-obj :stamp);;for tf error
-        (kalman-filter)
-        (publish-marker target-obj marker-life :frame *map-id*)
-        (publish-marker target-obj marker-life :frame *map-id* :object-name filtered-objectdetection
-                        :publish-name "/filtered")
-        (pub-PoseStamped-and-PoseWithCovarianceStamped target-obj)
+        (publish-marker target-obj marker-life :text-name "raw"
+                        :frame *map-id* :obj-color (float-vector 1 0.4 0.4))
         (simply-calc-covariance-and-pub-PoseStamped-and-PoseWithCovarianceStamped target-obj)
-        )
+        (when (null (catch-outlier target-obj))
+          (kalman-filter)
+          (publish-marker target-obj marker-life :frame *map-id* :object-name filtered-objectdetection
+                          :publish-name "/filtered" :obj-color (float-vector 0.4 0.4 1)
+                          :text-color (float-vector 0 0 1) :text-name "filtered")
+          (pub-PoseStamped-and-PoseWithCovarianceStamped target-obj)
+          ))
        (t
         nil)
        ))))
+
+(defun dummy-target-obj-cb (req)
+  (let ((m (send req :response))
+        (cds (make-coords))
+        (tmp-coords (instance posedetection_msgs::Object6DPose :init))
+        ts)
+    (send tmp-coords :pose :orientation :w 1)
+    (send tmp-coords :reliability 0.5)
+
+    (unless (boundp '*tfl*)
+      (setq *tfl* (instance ros::transform-listener :init)))
+    (unless (send *tfl* :wait-for-transform *base-frame-id* *map-id* (ros::time 0) 1)
+      (ros::ros-error "could not solve ~A to ~A" *base-frame-id* *map-id*))
+    (setq ts (send *tfl* :lookup-transform *base-frame-id* *map-id* (ros::time 0)))
+    (ros::ros-info "ts ~A" ts)
+    (send cds :reset-coords)
+    (cond
+     ((and ts (send map-frame-objectdetection :objects))
+      (send cds :move-to ts :local)
+      (let ((mf-obj-lst (send map-frame-objectdetection :objects))
+            (tp (send req :type)))
+        (dolist (obj mf-obj-lst)
+          (when (or (not (stringp tp))
+                    (substringp tp (send obj :type))) ;; found target
+            ;; (send cds :move-to (ros::tf-pose->coords (send obj :pose)) :local)
+            (send cds :move-to *dummy-coords* :local)
+            (send tmp-coords :pose (ros::coords->tf-pose (send cds :copy-worldcoords)))
+            (send tmp-coords :type (send obj :type))
+            (ros::ros-info "in cb tmp-coords:(~A ~A ~A)"
+                           (send (send (send tmp-coords :pose) :position) :x)
+                           (send (send (send tmp-coords :pose) :position) :y)
+                           (send (send (send tmp-coords :pose) :position) :z))))
+      ))
+     (t
+      (send tmp-coords :reliability 0)
+      nil))
+    (ros::ros-info "cds:~A" (send cds :worldcoords))
+    (send m :object_pose tmp-coords)
+    (ros::ros-info "reliability:~A type:~A" (send (send m :object_pose) :reliability) (send (send m :object_pose) :type))
+    m))
 
 (defun target-obj-cb (req)
   (let ((m (send req :response))
@@ -524,14 +652,15 @@
   (when *detect-flag*
     ;; reflesh
     (setq map-frame-objectdetection (instance posedetection_msgs::ObjectDetection :init))
+    (send map-frame-objectdetection :header :frame_id *map-id*) ;; avoiding header error in rviz
     ))
 
 (defun only-perception (&key ((:type atype) nil) (tf-force nil)
                              (publish-objectdetection-marker t)
-                             (marker-life 30)
+                             (marker-life 300)
                              (detection-topic *detection-topic*)
                              (look-at nil)
-                             ((:target-object target-obj) (make-cube 60 60 60))
+                             ((:target-object target-obj) (make-cube 10 10 60))
                              )
   (let ((tgt-cds (send target-obj :copy-worldcoords))
         )
@@ -543,10 +672,12 @@
     (ros::rate 10)
     (ros::advertise "/object_detection_marker_array" visualization_msgs::MarkerArray 5)
     (ros::advertise "/filtered" visualization_msgs::MarkerArray 5)
+    (ros::advertise "/outlier" visualization_msgs::MarkerArray 5)
     (ros::advertise "/attention_clipper/input/pose" geometry_msgs::PoseStamped 1)
     (ros::advertise "/posewithcovstamped" geometry_msgs::PoseWithCovarianceStamped 1)
     (ros::advertise "/simplecov" geometry_msgs::PoseWithCovarianceStamped 1)
     (ros::advertise-service "targetobj" posedetection_msgs::TargetObj #'target-obj-cb)
+    (ros::advertise-service "dummytargetobj" posedetection_msgs::TargetObj #'dummy-target-obj-cb)
     (setq object-width (ros::get-param "~object_width" 0.2))
     (setq object-height (ros::get-param "~object_height" 0.2))
     (setq relative-pose-str (ros::get-param "~relative_pose" "0 0 0 0 0 0 1"))
@@ -569,7 +700,7 @@
       )))
     ;; (ros::spin)))
 
-(setq *calc-kalman* nil)
+(setq *calc-kalman* t)
 (setq *detect-flag* nil)
 (only-perception)
 
