@@ -659,7 +659,7 @@
                              (publish-objectdetection-marker t)
                              (marker-life 300)
                              (detection-topic *detection-topic*)
-                             (look-at nil)
+                             (look-at nil) (exec t)
                              ((:target-object target-obj) (make-cube 10 10 60))
                              )
   (let ((tgt-cds (send target-obj :copy-worldcoords))
@@ -684,24 +684,25 @@
     (ros::subscribe "/openni_c2/rgb/image_rect_color"
                     sensor_msgs::Image #'attention-init)
     (ros::subscribe "/detectfridgeflag" std_msgs::Bool #'detect-flag-cb)
-    (while t
-      (ros::spin-once)
-      (cond
-       (*detect-flag*
-        ;; detection-topic is in this scope. So need to set subscribe or not here.
-        (ros::subscribe detection-topic
-                        posedetection_msgs::ObjectDetection
-                        #'pub-cb target-obj marker-life tf-force)
-        )
-       (t
-        (ros::unsubscribe detection-topic)
-        ))
-      (ros::sleep)
-      )))
+    (when exec
+      (while t
+        (ros::spin-once)
+        (cond
+         (*detect-flag*
+          ;; detection-topic is in this scope. So need to set subscribe or not here.
+          (ros::subscribe detection-topic
+                          posedetection_msgs::ObjectDetection
+                          #'pub-cb target-obj marker-life tf-force)
+          )
+         (t
+          (ros::unsubscribe detection-topic)
+          ))
+        (ros::sleep)
+        ))))
     ;; (ros::spin)))
 
 (setq *calc-kalman* t)
 (setq *detect-flag* nil)
-(only-perception)
+(only-perception); :exec nil)
 
 
