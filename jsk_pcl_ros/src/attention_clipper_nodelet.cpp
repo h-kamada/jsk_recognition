@@ -303,13 +303,23 @@ namespace jsk_pcl_ros
     jsk_recognition_msgs::BoundingBoxArray box_array;
     box_array.header.frame_id = header.frame_id;
     box_array.header.stamp = header.stamp;
+    JSK_ROS_INFO ("bb poselistsize %d" , pose_list_.size());
     for (size_t i = 0; i < pose_list_.size(); i++) {
+      JSK_ROS_INFO ("sasd");
       jsk_recognition_msgs::BoundingBox box;
       box.header = header;
+      JSK_ROS_INFO ("ssda");
+
+
       tf::poseEigenToMsg(transformed_pose_list_[i], box.pose);
+
+
+      JSK_ROS_INFO ("koko");
       jsk_pcl_ros::pointFromVectorToXYZ(dimensions_[i], box.dimensions);
+      JSK_ROS_INFO ("kana");
       box_array.boxes.push_back(box);
     }
+    JSK_ROS_INFO ("here");
     pub_bounding_box_array_.publish(box_array);
   }
 
@@ -474,6 +484,7 @@ namespace jsk_pcl_ros
 
   void AttentionClipper::clip(const sensor_msgs::CameraInfo::ConstPtr& msg)
   {
+    //    JSK_ROS_INFO ("hoge");
     boost::mutex::scoped_lock lock(mutex_);
     vital_checker_->poke();
     // resolve tf for all interest
@@ -485,6 +496,7 @@ namespace jsk_pcl_ros
         JSK_ROS_ERROR("failed to create camera model");
         return;
       }
+      //     JSK_ROS_INFO ("for before:%d",pose_list_.size());
       for (size_t i = 0; i < pose_list_.size(); i++) {
         std::string frame_id = frame_id_list_[i];
         tf_listener_->waitForTransform(frame_id,
@@ -492,41 +504,54 @@ namespace jsk_pcl_ros
                                        msg->header.stamp,
                                        ros::Duration(1.0));
         Eigen::Affine3f offset = pose_list_[i];
+        //        JSK_ROS_INFO ("hoge1");
         if (tf_listener_->canTransform(msg->header.frame_id,
                                        frame_id,
                                        msg->header.stamp)) {
+          //JSK_ROS_INFO ("hoge1,4");
           tf::StampedTransform transform; // header -> frame_id_
           tf_listener_->lookupTransform(frame_id, msg->header.frame_id,
                                         msg->header.stamp, transform);
           Eigen::Affine3f eigen_transform;
           tf::transformTFToEigen(transform, eigen_transform);
+          //JSK_ROS_INFO ("hoge2");
           Vertices original_vertices = cubeVertices(dimensions_[i]);
           Vertices vertices;
           for (size_t i = 0; i < original_vertices.size(); i++) {
             vertices.push_back(eigen_transform.inverse()
                                * (offset * original_vertices[i]));
           }
+          //Jsk_ROS_INFO ("hoge3");
           std::vector<cv::Point2d> local_points;
           for (size_t i = 0; i < vertices.size(); i++) {
             cv::Point3d p(vertices[i][0], vertices[i][1], vertices[i][2]);
             cv::Point2d uv = model.project3dToPixel(p);
             local_points.push_back(uv);
           }
+          //JSK_ROS_INFO ("fuga");
           cv::Mat mask_image;
           computeROI(msg, local_points, mask_image);
+          //JSK_ROS_INFO ("foo");
           all_mask_image = all_mask_image | mask_image;
         }
       }
+      //JSK_ROS_INFO ("for end");
       // publish
       cv_bridge::CvImage mask_bridge(msg->header,
                                      sensor_msgs::image_encodings::MONO8,
                                      all_mask_image);
+      //JSK_ROS_INFO ("a");
+      mask_bridge.toImageMsg();
+      //JSK_ROS_INFO ("b");
       pub_mask_.publish(mask_bridge.toImageMsg());
-      publishBoundingBox(msg->header);
+      //JSK_ROS_INFO ("vb");
+       // publishBoundingBox(msg->header);
+      //JSK_ROS_INFO ("c");
     }
     catch (std::runtime_error &e) {
       NODELET_ERROR("[%s] Transform error: %s", __PRETTY_FUNCTION__, e.what());
-    } 
+    }
+    //JSK_ROS_INFO ("end");
   }
 
   void AttentionClipper::updateDiagnostic(
